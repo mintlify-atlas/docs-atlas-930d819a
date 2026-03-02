@@ -1,0 +1,153 @@
+---
+title: "Stream API"
+description: "Real-time streaming endpoints for the X API"
+---
+
+## Overview
+
+The `StreamClient` provides access to real-time streaming endpoints including filtered streams, sample streams, and compliance streams. Streaming connections automatically handle reconnection with exponential backoff.
+
+## Initialization
+
+Access the stream client through the main `Client` instance:
+
+```python
+from xdk import Client
+
+client = Client(bearer_token="your_token")
+stream = client.stream
+```
+
+## Key Methods
+
+### posts_search()
+
+Stream real-time posts matching filter rules with automatic pagination and reconnection.
+
+<ParamField path="backfill_minutes" type="int" optional>
+  Number of minutes of backfill to retrieve
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  Tweet fields to include in the response
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Expansions to include in the response
+</ParamField>
+
+**Returns:** `Generator` yielding posts as they arrive
+
+**Example:**
+
+```python
+from xdk.streaming import StreamConfig
+
+# Configure streaming with retry behavior
+config = StreamConfig(
+    max_retries=10,
+    initial_backoff=1.0,
+    max_backoff=60.0
+)
+
+# Stream filtered posts
+for post in client.stream.posts_search(
+    tweet_fields=["created_at", "author_id"],
+    config=config
+):
+    print(f"New post: {post.data.text}")
+```
+
+### posts_sample()
+
+Stream a random sample of public posts in real-time.
+
+<ParamField path="backfill_minutes" type="int" optional>
+  Number of minutes of backfill to retrieve
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  Tweet fields to include in the response
+</ParamField>
+
+**Returns:** `Generator` yielding random sample posts
+
+**Example:**
+
+```python
+# Stream a sample of posts
+for post in client.stream.posts_sample(
+    tweet_fields=["lang", "created_at"]
+):
+    print(f"Sample post: {post.data.text}")
+```
+
+### Stream Rules Management
+
+Manage filtering rules for the filtered stream:
+
+```python
+from xdk.stream.models import UpdateRulesRequest
+
+# Add stream rules
+rules_request = UpdateRulesRequest(
+    add=[
+        {"value": "python programming", "tag": "python-tweets"},
+        {"value": "from:xdevplatform", "tag": "xdev-tweets"}
+    ]
+)
+response = client.stream.update_rules(body=rules_request)
+
+# Get current rules
+rules = client.stream.get_rules()
+for rule in rules.data:
+    print(f"Rule: {rule.value} (tag: {rule.tag})")
+
+# Get rule counts
+counts = client.stream.get_rule_counts()
+```
+
+## Compliance Streams
+
+### posts_compliance()
+
+Stream compliance events for posts (deletions, withheld content, etc.)
+
+**Example:**
+
+```python
+for event in client.stream.posts_compliance():
+    print(f"Compliance event: {event}")
+```
+
+### users_compliance()
+
+Stream compliance events for users (suspensions, deactivations, etc.)
+
+### likes_compliance()
+
+Stream compliance events for likes (unlike events, etc.)
+
+## Firehose Streams
+
+For Enterprise access, firehose streams are available:
+
+- `posts_firehose()` - Full firehose of all public posts
+- `posts_firehose_ja()` - Japanese language firehose
+- `posts_firehose_ko()` - Korean language firehose
+- `posts_firehose_pt()` - Portuguese language firehose
+- `likes_firehose()` - All public like events
+
+## Authentication
+
+Streaming endpoints require:
+- **Bearer Token** (App-only)
+- **OAuth 2.0 User Context**
+
+Some firehose endpoints require Enterprise API access.
+
+## See Also
+
+- [Streaming Guide](/guides/streaming-data)
+- [StreamConfig API](/api/streaming)
+- [Client Reference](/api/client)

@@ -77,7 +77,7 @@ client = Client(bearer_token="your_token")
 
 # Create cursor for post search
 search_cursor = cursor(
-    client.posts.search_posts_recent,
+    client.posts.search_recent,
     "python",
     max_results=50
 )
@@ -167,7 +167,7 @@ except PaginationError as e:
 ```python
 # Search for recent posts about Python
 search = cursor(
-    client.posts.search_posts_recent,
+    client.posts.search_recent,
     "python programming",
     max_results=100
 )
@@ -218,7 +218,7 @@ from xdk import cursor
 
 # Type is inferred as Cursor[GetUsersResponse]
 users_cursor = cursor(
-    client.users.get_users_blocking, 
+    client.users.get_blocking, 
     "user_id", 
     max_results=100
 )
@@ -255,7 +255,7 @@ from xdk.paginator import PaginationError
 
 try:
     search = cursor(
-        client.posts.search_posts_recent,
+        client.posts.search_recent,
         "query",
         max_results=100
     )

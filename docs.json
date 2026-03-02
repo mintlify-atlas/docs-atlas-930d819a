@@ -113,6 +113,13 @@
             ]
           },
           {
+            "group": "Streaming",
+            "pages": [
+              "api/stream",
+              "api/account-activity"
+            ]
+          },
+          {
             "group": "Other Resources",
             "pages": [
               "api/trends",
@@ -122,7 +129,9 @@
               "api/compliance",
               "api/news",
               "api/activity",
-              "api/community-notes"
+              "api/community-notes",
+              "api/general",
+              "api/usage"
             ]
           },
           {

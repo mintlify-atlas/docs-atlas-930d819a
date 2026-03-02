@@ -1,0 +1,50 @@
+---
+title: "General API"
+description: "General utility endpoints for the X API"
+---
+
+## Overview
+
+The `GeneralClient` provides access to general utility endpoints, including the OpenAPI specification.
+
+## Initialization
+
+Access the general client through the main `Client` instance:
+
+```python
+from xdk import Client
+
+client = Client(bearer_token="your_token")
+general = client.general
+```
+
+## Methods
+
+### get_open_api_spec()
+
+Retrieves the full OpenAPI Specification in JSON format.
+
+<ParamField path="None" type="None">
+  This method takes no parameters.
+</ParamField>
+
+**Returns:** `GetOpenApiSpecResponse` - The OpenAPI specification document
+
+**Example:**
+
+```python
+# Get the OpenAPI specification
+spec = client.general.get_open_api_spec()
+print(spec)
+```
+
+## Authentication
+
+The general endpoints support:
+- **Bearer Token** (App-only)
+- **OAuth 2.0 User Context**
+
+## See Also
+
+- [Client Reference](/api/client)
+- [X API OpenAPI Specification](https://github.com/OAI/OpenAPI-Specification)

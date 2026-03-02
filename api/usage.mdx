@@ -1,0 +1,59 @@
+---
+title: "Usage API"
+description: "Retrieve API usage statistics"
+---
+
+## Overview
+
+The `UsageClient` provides access to usage statistics for your API consumption.
+
+## Initialization
+
+Access the usage client through the main `Client` instance:
+
+```python
+from xdk import Client
+
+client = Client(bearer_token="your_token")
+usage = client.usage
+```
+
+## Methods
+
+### get()
+
+Retrieves usage statistics for Posts over a specified number of days.
+
+<ParamField path="days" type="int" optional>
+  The number of days for which you need usage statistics
+</ParamField>
+
+<ParamField path="usage_fields" type="List[str]" optional>
+  A comma-separated list of Usage fields to display
+</ParamField>
+
+**Returns:** `GetResponse` - Usage statistics data
+
+**Example:**
+
+```python
+# Get usage for the last 7 days
+usage_data = client.usage.get(days=7)
+
+# Get usage with specific fields
+usage_data = client.usage.get(
+    days=30,
+    usage_fields=["cap_reset_day", "daily_project_usage"]
+)
+```
+
+## Authentication
+
+The usage endpoints require:
+- **Bearer Token** (App-only)
+- **OAuth 2.0 User Context**
+
+## See Also
+
+- [Client Reference](/api/client)
+- [Rate Limits Guide](/guides/rate-limits)

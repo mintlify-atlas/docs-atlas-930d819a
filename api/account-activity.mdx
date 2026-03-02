@@ -1,0 +1,153 @@
+---
+title: "Account Activity API"
+description: "Manage account activity webhooks and subscriptions"
+---
+
+## Overview
+
+The `AccountActivityClient` provides methods for managing account activity webhooks and subscriptions, allowing you to receive real-time notifications about account events.
+
+## Initialization
+
+Access the account activity client through the main `Client` instance:
+
+```python
+from xdk import Client
+
+client = Client(bearer_token="your_token")
+account_activity = client.account_activity
+```
+
+## Key Methods
+
+### create_subscription()
+
+Create a subscription to receive account activity events via webhook.
+
+<ParamField path="body" type="CreateSubscriptionRequest" required>
+  Subscription configuration including webhook URL and event types
+</ParamField>
+
+**Returns:** `CreateSubscriptionResponse`
+
+**Example:**
+
+```python
+from xdk.account_activity.models import CreateSubscriptionRequest
+
+# Create a subscription
+subscription_request = CreateSubscriptionRequest(
+    webhook_id="webhook_123",
+    env_name="production"
+)
+response = client.account_activity.create_subscription(body=subscription_request)
+```
+
+### get_subscriptions()
+
+List all active subscriptions for your account.
+
+**Returns:** `GetSubscriptionsResponse` - List of active subscriptions
+
+**Example:**
+
+```python
+# Get all subscriptions
+subscriptions = client.account_activity.get_subscriptions()
+for sub in subscriptions.data:
+    print(f"Subscription: {sub.id}")
+```
+
+### get_subscription_count()
+
+Get the count of subscriptions for your account.
+
+**Returns:** `GetSubscriptionCountResponse` - Subscription count data
+
+**Example:**
+
+```python
+# Get subscription count
+count = client.account_activity.get_subscription_count()
+print(f"Active subscriptions: {count.data.count}")
+```
+
+### validate_subscription()
+
+Validate a webhook subscription by triggering a CRC challenge.
+
+<ParamField path="webhook_id" type="str" required>
+  The unique identifier for the webhook configuration
+</ParamField>
+
+**Returns:** `ValidateSubscriptionResponse`
+
+**Example:**
+
+```python
+# Validate a subscription
+validation = client.account_activity.validate_subscription(
+    webhook_id="webhook_123"
+)
+```
+
+### delete_subscription()
+
+Delete an existing subscription.
+
+<ParamField path="webhook_id" type="str" required>
+  The webhook ID for the subscription to delete
+</ParamField>
+
+**Returns:** `DeleteSubscriptionResponse`
+
+**Example:**
+
+```python
+# Delete a subscription
+response = client.account_activity.delete_subscription(
+    webhook_id="webhook_123"
+)
+```
+
+### create_replay_job()
+
+Create a replay job to retrieve historical activities from up to the past 5 days.
+
+<ParamField path="webhook_id" type="str" required>
+  The unique identifier for the webhook configuration
+</ParamField>
+
+<ParamField path="from_date" type="str" required>
+  Starting UTC timestamp in `yyyymmddhhmm` format (inclusive)
+</ParamField>
+
+<ParamField path="to_date" type="str" required>
+  Ending UTC timestamp in `yyyymmddhhmm` format (inclusive)
+</ParamField>
+
+**Returns:** `CreateReplayJobResponse`
+
+**Example:**
+
+```python
+# Create a replay job for the last 3 days
+response = client.account_activity.create_replay_job(
+    webhook_id="webhook_123",
+    from_date="202403010000",
+    to_date="202403040000"
+)
+print(f"Replay job created: {response.data.job_id}")
+```
+
+## Authentication
+
+Account activity endpoints require:
+- **OAuth 1.0a User Token**
+- **OAuth 2.0 User Context**
+
+## See Also
+
+- [Webhooks API](/api/webhooks)
+- [Activity API](/api/activity)
+- [Client Reference](/api/client)

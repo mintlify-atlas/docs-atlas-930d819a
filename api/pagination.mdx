@@ -63,18 +63,18 @@ pages(limit: Optional[int] = None) -> Iterator[ResponseType]
 ### Example Usage
 
 ```python
-from xdk import X
+from xdk import Client
 from xdk.paginator import Cursor
 
-client = X(bearer_token="your_token")
+client = Client(bearer_token="your_token")
 
 # For methods requiring arguments
-cursor = Cursor(client.users.get_users_blocking, "user_id", max_results=100)
+cursor = Cursor(client.users.get_blocking, "user_id", max_results=100)
 for user in cursor.items(250):  # user is properly typed
     print(user.name)
 
 # For methods with query parameters
-cursor = Cursor(client.posts.search_posts_recent, "python", max_results=50)
+cursor = Cursor(client.posts.search_recent, "python", max_results=50)
 for page in cursor.pages(5):  # page is SearchResponse type
     print(f"Got {len(page.data)} posts")
 ```
@@ -109,20 +109,20 @@ cursor(method: PaginatableMethod[ResponseType], *args, **kwargs) -> Cursor[Respo
 ### Example Usage
 
 ```python
-from xdk import X
+from xdk import Client
 from xdk.paginator import cursor
 
-client = X(bearer_token="your_token")
+client = Client(bearer_token="your_token")
 
 # Type is inferred as Cursor[GetUsersResponse]
-users_cursor = cursor(client.users.get_users_blocking, "user_id", max_results=100)
+users_cursor = cursor(client.users.get_blocking, "user_id", max_results=100)
 
 # page is typed as GetUsersResponse
 for page in users_cursor.pages(5):
     print(len(page.data))
 
 # For search methods
-search_cursor = cursor(client.posts.search_posts_recent, "python", max_results=50)
+search_cursor = cursor(client.posts.search_recent, "python", max_results=50)
 for tweet in search_cursor.items(100):
     print(tweet.text)
 ```
