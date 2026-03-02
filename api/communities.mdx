@@ -1,0 +1,245 @@
+---
+title: 'Communities'
+description: 'Search and manage X Communities with the CommunitiesClient'
+---
+
+## Overview
+
+The `CommunitiesClient` provides methods to search for Communities and retrieve Community information from the X API.
+
+## Initialization
+
+Access the CommunitiesClient through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="YOUR_BEARER_TOKEN",
+    access_token="YOUR_ACCESS_TOKEN"
+)
+
+communities_client = client.communities
+```
+
+## Methods
+
+### search
+
+Retrieves a list of Communities matching the specified search query. This method automatically handles pagination.
+
+```python
+def search(
+    query: str,
+    max_results: int = None,
+    next_token: Any = None,
+    pagination_token: Any = None,
+    community_fields: List = None
+) -> Iterator[SearchResponse]
+```
+
+<ParamField path="query" type="str" required>
+  The search query to find Communities
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (default: 10, max: 100)
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  Token to get a specific page of results
+</ParamField>
+
+<ParamField path="community_fields" type="List[str]" optional>
+  Community fields to display (e.g., ['id', 'name', 'description', 'member_count', 'created_at'])
+</ParamField>
+
+**Returns:** `Iterator[SearchResponse]` - Yields pages of Communities matching the query
+
+**Example:**
+
+```python
+# Search for developer communities
+for page in client.communities.search(
+    query="developers",
+    max_results=20,
+    community_fields=['id', 'name', 'description', 'member_count']
+):
+    for community in page.data:
+        print(f"Community: {community.name}")
+        print(f"Description: {community.description}")
+        print(f"Members: {community.member_count}")
+        print("---")
+```
+
+**Advanced Example:**
+
+```python
+# Search with specific criteria and collect all results
+communities = []
+
+for page in client.communities.search(
+    query="python programming",
+    max_results=50,
+    community_fields=['id', 'name', 'description', 'member_count', 'created_at']
+):
+    communities.extend(page.data)
+
+# Sort by member count
+communities.sort(key=lambda c: c.member_count, reverse=True)
+
+print(f"Found {len(communities)} communities")
+for i, community in enumerate(communities[:10], 1):
+    print(f"{i}. {community.name} - {community.member_count:,} members")
+```
+
+---
+
+### get_by_id
+
+Retrieves details of a specific Community by its ID.
+
+```python
+def get_by_id(
+    id: Any,
+    community_fields: List = None
+) -> GetByIdResponse
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the Community to retrieve
+</ParamField>
+
+<ParamField path="community_fields" type="List[str]" optional>
+  Community fields to display (e.g., ['id', 'name', 'description', 'member_count', 'admin_count', 'created_at', 'rules'])
+</ParamField>
+
+**Returns:** `GetByIdResponse` - The Community data
+
+**Example:**
+
+```python
+community_id = "123456789"
+
+response = client.communities.get_by_id(
+    id=community_id,
+    community_fields=[
+        'id',
+        'name',
+        'description',
+        'member_count',
+        'admin_count',
+        'created_at',
+        'rules'
+    ]
+)
+
+community = response.data
+print(f"Community: {community.name}")
+print(f"Description: {community.description}")
+print(f"Members: {community.member_count:,}")
+print(f"Admins: {community.admin_count}")
+print(f"Created: {community.created_at}")
+
+if community.rules:
+    print("\nCommunity Rules:")
+    for i, rule in enumerate(community.rules, 1):
+        print(f"{i}. {rule}")
+```
+
+**Metadata Example:**
+
+```python
+# Get community with all available fields
+response = client.communities.get_by_id(
+    id="community_123",
+    community_fields=[
+        'id',
+        'name',
+        'description',
+        'member_count',
+        'admin_count',
+        'moderator_count',
+        'created_at',
+        'rules',
+        'theme'
+    ]
+)
+
+community = response.data
+
+# Display community information
+info = f"""
+Community Information:
+====================
+Name: {community.name}
+ID: {community.id}
+Created: {community.created_at}
+
+Members: {community.member_count:,}
+Admins: {community.admin_count}
+Moderators: {community.moderator_count}
+
+Description:
+{community.description}
+"""
+
+print(info)
+```
+
+## Authentication
+
+CommunitiesClient methods support multiple authentication methods:
+
+- **Bearer Token** (for public communities)
+- **OAuth 2.0 User Token** (for user-specific access)
+- **OAuth 1.0a User Token** (for user-specific access)
+
+Some Communities may require user context authentication to access.
+
+## Use Cases
+
+### Finding Relevant Communities
+
+```python
+# Search for communities related to a topic
+interests = ["machine learning", "data science", "AI"]
+relevant_communities = []
+
+for interest in interests:
+    for page in client.communities.search(
+        query=interest,
+        max_results=10,
+        community_fields=['id', 'name', 'member_count']
+    ):
+        relevant_communities.extend(page.data)
+        break  # Only get first page per interest
+
+# Remove duplicates based on community ID
+unique = {c.id: c for c in relevant_communities}
+print(f"Found {len(unique)} unique communities")
+```
+
+### Community Analytics
+
+```python
+# Get detailed stats for a community
+community = client.communities.get_by_id(
+    id="community_123",
+    community_fields=['name', 'member_count', 'admin_count', 'created_at']
+).data
+
+from datetime import datetime
+created = datetime.fromisoformat(community.created_at.replace('Z', '+00:00'))
+days_old = (datetime.now(created.tzinfo) - created).days
+
+print(f"Community: {community.name}")
+print(f"Age: {days_old} days")
+print(f"Members: {community.member_count:,}")
+print(f"Growth rate: {community.member_count / max(days_old, 1):.2f} members/day")
+```
+
+## See Also
+
+- [Authentication Guide](/auth/overview)
+- [X API Communities Documentation](https://developer.x.com/en/docs/x-api/communities/introduction)

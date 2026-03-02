@@ -1,0 +1,64 @@
+---
+title: 'News'
+description: 'Client for news operations'
+---
+
+## NewsClient
+
+The `NewsClient` provides methods for searching and retrieving news stories from X.
+
+### search
+
+Retrieves a list of News stories matching the specified search query.
+
+```python
+response = client.news.search(
+    query="artificial intelligence",
+    max_results=10,
+    max_age_hours=24,
+    news_fields=["id", "title", "description", "url", "created_at"]
+)
+```
+
+<ParamField path="query" type="str" required>
+  The search query.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The number of results to return.
+</ParamField>
+
+<ParamField path="max_age_hours" type="int" optional>
+  The maximum age of the News story to search for.
+</ParamField>
+
+<ParamField path="news_fields" type="List[str]" optional>
+  A comma separated list of News fields to display.
+</ParamField>
+
+<ResponseField name="SearchResponse" type="object">
+  Response containing news stories matching the search query.
+</ResponseField>
+
+### get
+
+Retrieves news story by its ID.
+
+```python
+response = client.news.get(
+    id="1234567890",
+    news_fields=["id", "title", "description", "url", "author"]
+)
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the news story.
+</ParamField>
+
+<ParamField path="news_fields" type="List[str]" optional>
+  A comma separated list of News fields to display.
+</ParamField>
+
+<ResponseField name="GetResponse" type="object">
+  Response containing the news story details.
+</ResponseField>

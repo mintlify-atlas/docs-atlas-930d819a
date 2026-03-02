@@ -1,0 +1,343 @@
+---
+title: 'Spaces'
+description: 'Manage X Spaces with the SpacesClient'
+---
+
+## Overview
+
+The `SpacesClient` provides methods to search for Spaces, retrieve Space information, and access Space-related data such as participants and posts.
+
+## Initialization
+
+Access the SpacesClient through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="YOUR_BEARER_TOKEN",
+    access_token="YOUR_ACCESS_TOKEN"
+)
+
+spaces_client = client.spaces
+```
+
+## Methods
+
+### search
+
+Retrieves a list of Spaces matching the specified search query.
+
+```python
+def search(
+    query: str,
+    state: str = None,
+    max_results: int = None,
+    space_fields: List = None,
+    expansions: List = None,
+    user_fields: List = None,
+    topic_fields: List = None
+) -> SearchResponse
+```
+
+<ParamField path="query" type="str" required>
+  The search query to find Spaces
+</ParamField>
+
+<ParamField path="state" type="str" optional>
+  The state of Spaces to search for (e.g., 'live', 'scheduled')
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The number of results to return (default: 10, max: 100)
+</ParamField>
+
+<ParamField path="space_fields" type="List[str]" optional>
+  Space fields to display (e.g., ['id', 'state', 'title', 'created_at', 'started_at', 'participant_count'])
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand (e.g., ['host_ids', 'creator_id', 'speaker_ids'])
+</ParamField>
+
+**Returns:** `SearchResponse` - The search results containing Spaces
+
+**Example:**
+
+```python
+# Search for live Spaces
+response = client.spaces.search(
+    query="tech talks",
+    state="live",
+    max_results=20,
+    space_fields=['id', 'state', 'title', 'participant_count', 'started_at'],
+    expansions=['host_ids', 'speaker_ids'],
+    user_fields=['username', 'name']
+)
+
+for space in response.data:
+    print(f"Space: {space.title}")
+    print(f"State: {space.state}")
+    print(f"Participants: {space.participant_count}")
+    print("---")
+```
+
+---
+
+### get_by_id
+
+Retrieves details of a specific Space by its ID.
+
+```python
+def get_by_id(
+    id: str,
+    space_fields: List = None,
+    expansions: List = None,
+    user_fields: List = None,
+    topic_fields: List = None
+) -> GetByIdResponse
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the Space to retrieve
+</ParamField>
+
+<ParamField path="space_fields" type="List[str]" optional>
+  Space fields to display
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand (e.g., ['host_ids', 'creator_id', 'invited_user_ids'])
+</ParamField>
+
+**Returns:** `GetByIdResponse` - The Space data
+
+**Example:**
+
+```python
+space_id = "1ABC2DEF3GHI4JKL"
+
+response = client.spaces.get_by_id(
+    id=space_id,
+    space_fields=[
+        'id',
+        'state',
+        'title',
+        'created_at',
+        'started_at',
+        'ended_at',
+        'participant_count',
+        'is_ticketed',
+        'scheduled_start'
+    ],
+    expansions=['host_ids', 'speaker_ids', 'creator_id'],
+    user_fields=['username', 'name', 'verified']
+)
+
+space = response.data
+print(f"Title: {space.title}")
+print(f"State: {space.state}")
+print(f"Participants: {space.participant_count}")
+
+if response.includes and 'users' in response.includes:
+    print("\nHosts:")
+    for user in response.includes['users']:
+        print(f"  @{user.username} - {user.name}")
+```
+
+---
+
+### get_by_creator_ids
+
+Retrieves details of Spaces created by specified User IDs.
+
+```python
+def get_by_creator_ids(
+    user_ids: List,
+    space_fields: List = None,
+    expansions: List = None,
+    user_fields: List = None,
+    topic_fields: List = None
+) -> GetByCreatorIdsResponse
+```
+
+<ParamField path="user_ids" type="List[str]" required>
+  The IDs of Users to search Spaces for (up to 100)
+</ParamField>
+
+<ParamField path="space_fields" type="List[str]" optional>
+  Space fields to display
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand
+</ParamField>
+
+**Returns:** `GetByCreatorIdsResponse` - The Spaces created by the specified users
+
+**Example:**
+
+```python
+# Get Spaces created by specific users
+response = client.spaces.get_by_creator_ids(
+    user_ids=["user_123", "user_456", "user_789"],
+    space_fields=['id', 'title', 'state', 'created_at', 'scheduled_start'],
+    expansions=['creator_id'],
+    user_fields=['username', 'name']
+)
+
+if response.data:
+    print(f"Found {len(response.data)} Spaces")
+    for space in response.data:
+        print(f"{space.title} - {space.state}")
+else:
+    print("No Spaces found for these users")
+```
+
+---
+
+### get_buyers
+
+Retrieves a list of Users who purchased tickets to a specific Space. This method automatically handles pagination.
+
+```python
+def get_buyers(
+    id: str,
+    pagination_token: Any = None,
+    max_results: int = None,
+    user_fields: List = None,
+    expansions: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetBuyersResponse]
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the Space to retrieve buyers for
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  User fields to display (e.g., ['id', 'username', 'name', 'verified'])
+</ParamField>
+
+**Returns:** `Iterator[GetBuyersResponse]` - Yields pages of ticket buyers
+
+**Example:**
+
+```python
+# Get all ticket buyers for a Space
+space_id = "ticketed_space_123"
+buyers = []
+
+for page in client.spaces.get_buyers(
+    id=space_id,
+    max_results=100,
+    user_fields=['id', 'username', 'name', 'verified']
+):
+    buyers.extend(page.data)
+
+print(f"Total ticket buyers: {len(buyers)}")
+for buyer in buyers:
+    verified = "✓" if buyer.verified else ""
+    print(f"@{buyer.username} {verified}")
+```
+
+---
+
+### get_by_ids
+
+Retrieves details of multiple Spaces by their IDs.
+
+```python
+def get_by_ids(
+    ids: List,
+    space_fields: List = None,
+    expansions: List = None,
+    user_fields: List = None,
+    topic_fields: List = None
+) -> GetByIdsResponse
+```
+
+<ParamField path="ids" type="List[str]" required>
+  The list of Space IDs to return (up to 100)
+</ParamField>
+
+<ParamField path="space_fields" type="List[str]" optional>
+  Space fields to display
+</ParamField>
+
+**Returns:** `GetByIdsResponse` - The Spaces data
+
+**Example:**
+
+```python
+# Get multiple Spaces at once
+space_ids = ["space_1", "space_2", "space_3"]
+
+response = client.spaces.get_by_ids(
+    ids=space_ids,
+    space_fields=['id', 'title', 'state', 'participant_count'],
+    expansions=['host_ids']
+)
+
+for space in response.data:
+    print(f"{space.title} - {space.state} - {space.participant_count} participants")
+```
+
+## Authentication
+
+SpacesClient methods support multiple authentication methods:
+
+- **Bearer Token** (for public Spaces)
+- **OAuth 2.0 User Token** (for user-specific operations like get_buyers)
+
+Some methods may require user context authentication depending on Space privacy settings.
+
+## Use Cases
+
+### Monitoring Live Spaces
+
+```python
+import time
+
+# Poll for live Spaces on a topic
+while True:
+    response = client.spaces.search(
+        query="programming",
+        state="live",
+        max_results=10,
+        space_fields=['id', 'title', 'participant_count']
+    )
+    
+    if response.data:
+        print(f"\nFound {len(response.data)} live Spaces:")
+        for space in response.data:
+            print(f"  {space.title} ({space.participant_count} participants)")
+    
+    time.sleep(60)  # Check every minute
+```
+
+### Tracking Creator Activity
+
+```python
+# Get all Spaces by a creator
+creator_id = "creator_123"
+
+response = client.spaces.get_by_creator_ids(
+    user_ids=[creator_id],
+    space_fields=['id', 'title', 'state', 'created_at', 'scheduled_start']
+)
+
+upcoming = [s for s in response.data if s.state == 'scheduled']
+print(f"Upcoming Spaces: {len(upcoming)}")
+for space in upcoming:
+    print(f"  {space.title} - scheduled for {space.scheduled_start}")
+```
+
+## See Also
+
+- [Authentication Guide](/auth/overview)
+- [X API Spaces Documentation](https://developer.x.com/en/docs/x-api/spaces/introduction)

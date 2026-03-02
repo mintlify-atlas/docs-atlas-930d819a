@@ -1,0 +1,389 @@
+---
+title: 'Media'
+description: 'Upload and manage media with the MediaClient'
+---
+
+## Overview
+
+The `MediaClient` provides methods to upload media files, retrieve media information, and access media analytics from the X API.
+
+## Initialization
+
+Access the MediaClient through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="YOUR_BEARER_TOKEN",
+    access_token="YOUR_ACCESS_TOKEN"
+)
+
+media_client = client.media
+```
+
+## Methods
+
+### get_by_key
+
+Retrieves details of a specific Media file by its media key.
+
+```python
+def get_by_key(
+    media_key: Any,
+    media_fields: List = None
+) -> GetByKeyResponse
+```
+
+<ParamField path="media_key" type="str" required>
+  A single media key identifying the media file
+</ParamField>
+
+<ParamField path="media_fields" type="List[str]" optional>
+  Media fields to display (e.g., ['media_key', 'type', 'url', 'duration_ms', 'height', 'width', 'public_metrics'])
+</ParamField>
+
+**Returns:** `GetByKeyResponse` - The media file data
+
+**Example:**
+
+```python
+media_key = "3_1234567890123456789"
+
+response = client.media.get_by_key(
+    media_key=media_key,
+    media_fields=['media_key', 'type', 'url', 'height', 'width', 'public_metrics']
+)
+
+media = response.data
+print(f"Media Type: {media.type}")
+print(f"Dimensions: {media.width}x{media.height}")
+print(f"URL: {media.url}")
+if media.public_metrics:
+    print(f"View count: {media.public_metrics.view_count}")
+```
+
+---
+
+### get_by_keys
+
+Retrieves details of Media files by their media keys.
+
+```python
+def get_by_keys(
+    media_keys: List,
+    media_fields: List = None
+) -> GetByKeysResponse
+```
+
+<ParamField path="media_keys" type="List[str]" required>
+  A list of media keys (up to 100 allowed in a single request)
+</ParamField>
+
+<ParamField path="media_fields" type="List[str]" optional>
+  Media fields to display
+</ParamField>
+
+**Returns:** `GetByKeysResponse` - The media files data
+
+**Example:**
+
+```python
+media_keys = [
+    "3_1234567890123456789",
+    "3_9876543210987654321",
+    "3_1111111111111111111"
+]
+
+response = client.media.get_by_keys(
+    media_keys=media_keys,
+    media_fields=['media_key', 'type', 'url', 'duration_ms']
+)
+
+for media in response.data:
+    print(f"Key: {media.media_key}")
+    print(f"Type: {media.type}")
+    if media.duration_ms:
+        print(f"Duration: {media.duration_ms / 1000:.2f}s")
+    print("---")
+```
+
+---
+
+### get_analytics
+
+Retrieves analytics data for media files over a specified time range.
+
+```python
+def get_analytics(
+    media_keys: List,
+    end_time: str,
+    start_time: str,
+    granularity: str,
+    media_analytics_fields: List = None
+) -> GetAnalyticsResponse
+```
+
+<ParamField path="media_keys" type="List[str]" required>
+  A list of media keys to get analytics for (up to 100)
+</ParamField>
+
+<ParamField path="start_time" type="str" required>
+  YYYY-MM-DDTHH:mm:ssZ format - The UTC timestamp representing the start of the time range
+</ParamField>
+
+<ParamField path="end_time" type="str" required>
+  YYYY-MM-DDTHH:mm:ssZ format - The UTC timestamp representing the end of the time range
+</ParamField>
+
+<ParamField path="granularity" type="str" required>
+  The granularity for the analytics results (e.g., 'hour', 'day')
+</ParamField>
+
+<ParamField path="media_analytics_fields" type="List[str]" optional>
+  Media analytics fields to display (e.g., ['view_count', 'playback_0_count', 'playback_25_count'])
+</ParamField>
+
+**Returns:** `GetAnalyticsResponse` - The analytics data
+
+**Example:**
+
+```python
+from datetime import datetime, timedelta
+
+# Get analytics for the last 7 days
+end_time = datetime.utcnow()
+start_time = end_time - timedelta(days=7)
+
+response = client.media.get_analytics(
+    media_keys=["3_1234567890123456789"],
+    start_time=start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    end_time=end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    granularity="day",
+    media_analytics_fields=['view_count', 'playback_25_count', 'playback_50_count', 'playback_100_count']
+)
+
+for analytics in response.data:
+    print(f"Media: {analytics.media_key}")
+    print(f"Views: {analytics.view_count}")
+    print(f"25% watched: {analytics.playback_25_count}")
+    print(f"50% watched: {analytics.playback_50_count}")
+    print(f"Completed: {analytics.playback_100_count}")
+```
+
+---
+
+### initialize_upload
+
+Initializes a media upload session for chunked uploads.
+
+```python
+def initialize_upload(
+    body: Optional[InitializeUploadRequest] = None
+) -> InitializeUploadResponse
+```
+
+<ParamField path="body" type="InitializeUploadRequest" optional>
+  Request body containing upload parameters (media_type, total_bytes, media_category)
+</ParamField>
+
+**Returns:** `InitializeUploadResponse` - The upload session data including media_id
+
+**Example:**
+
+```python
+import os
+from xdk.media.models import InitializeUploadRequest
+
+# Initialize upload for a video file
+video_path = "my_video.mp4"
+video_size = os.path.getsize(video_path)
+
+response = client.media.initialize_upload(
+    body=InitializeUploadRequest(
+        media_type="video/mp4",
+        total_bytes=video_size,
+        media_category="tweet_video"
+    )
+)
+
+media_id = response.media_id
+print(f"Upload initialized. Media ID: {media_id}")
+```
+
+---
+
+### append_upload
+
+Appends data to a Media upload request for chunked uploads.
+
+```python
+def append_upload(
+    id: Any,
+    body: Optional[AppendUploadRequest] = None
+) -> AppendUploadResponse
+```
+
+<ParamField path="id" type="str" required>
+  The media identifier for the media to perform the append operation
+</ParamField>
+
+<ParamField path="body" type="AppendUploadRequest" optional>
+  Request body containing the media chunk data and segment index
+</ParamField>
+
+**Returns:** `AppendUploadResponse` - Confirmation of the append operation
+
+**Example:**
+
+```python
+import base64
+from xdk.media.models import AppendUploadRequest
+
+# Append chunks to upload
+CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
+
+with open("my_video.mp4", "rb") as f:
+    segment_index = 0
+    while True:
+        chunk = f.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        
+        client.media.append_upload(
+            id=media_id,
+            body=AppendUploadRequest(
+                media_data=base64.b64encode(chunk).decode('utf-8'),
+                segment_index=segment_index
+            )
+        )
+        segment_index += 1
+        print(f"Uploaded chunk {segment_index}")
+```
+
+---
+
+### get_upload_status
+
+Retrieves the status of a Media upload by its ID.
+
+```python
+def get_upload_status(
+    media_id: Any,
+    command: str = None
+) -> GetUploadStatusResponse
+```
+
+<ParamField path="media_id" type="str" required>
+  Media ID for the requested media upload status
+</ParamField>
+
+<ParamField path="command" type="str" optional>
+  The command for the media upload request (typically 'STATUS')
+</ParamField>
+
+**Returns:** `GetUploadStatusResponse` - The upload status data
+
+**Example:**
+
+```python
+import time
+
+# Check upload status
+while True:
+    status_response = client.media.get_upload_status(
+        media_id=media_id,
+        command="STATUS"
+    )
+    
+    processing_state = status_response.processing_info.state
+    print(f"Processing state: {processing_state}")
+    
+    if processing_state == "succeeded":
+        print("Upload completed successfully!")
+        break
+    elif processing_state == "failed":
+        print(f"Upload failed: {status_response.processing_info.error}")
+        break
+    
+    # Wait before checking again
+    check_after_secs = status_response.processing_info.check_after_secs or 5
+    time.sleep(check_after_secs)
+```
+
+## Complete Upload Example
+
+Here's a complete example of uploading a video file:
+
+```python
+import os
+import base64
+import time
+from xdk.media.models import InitializeUploadRequest, AppendUploadRequest
+
+def upload_video(client, video_path):
+    """Upload a video file to X using chunked upload."""
+    
+    # Step 1: Initialize upload
+    video_size = os.path.getsize(video_path)
+    init_response = client.media.initialize_upload(
+        body=InitializeUploadRequest(
+            media_type="video/mp4",
+            total_bytes=video_size,
+            media_category="tweet_video"
+        )
+    )
+    media_id = init_response.media_id
+    print(f"Initialized upload: {media_id}")
+    
+    # Step 2: Upload chunks
+    CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
+    with open(video_path, "rb") as f:
+        segment_index = 0
+        while True:
+            chunk = f.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            
+            client.media.append_upload(
+                id=media_id,
+                body=AppendUploadRequest(
+                    media_data=base64.b64encode(chunk).decode('utf-8'),
+                    segment_index=segment_index
+                )
+            )
+            segment_index += 1
+            print(f"Uploaded chunk {segment_index}")
+    
+    # Step 3: Finalize and check status
+    while True:
+        status = client.media.get_upload_status(media_id=media_id)
+        state = status.processing_info.state
+        
+        if state == "succeeded":
+            print("Upload completed!")
+            return media_id
+        elif state == "failed":
+            raise Exception(f"Upload failed: {status.processing_info.error}")
+        
+        time.sleep(status.processing_info.check_after_secs or 5)
+
+# Usage
+media_id = upload_video(client, "my_video.mp4")
+print(f"Video uploaded successfully: {media_id}")
+```
+
+## Authentication
+
+MediaClient methods support multiple authentication methods:
+
+- **Bearer Token** (for read operations like get_by_key)
+- **OAuth 2.0 User Token** (required for upload operations and analytics)
+- **OAuth 1.0a User Token** (required for upload operations and analytics)
+
+Upload operations require user context authentication.
+
+## See Also
+
+- [Authentication Guide](/auth/overview)
+- [X API Media Documentation](https://developer.x.com/en/docs/x-api/media/introduction)

@@ -1,0 +1,156 @@
+---
+title: "Pagination"
+description: "Cursor-based pagination utilities for iterating through API responses"
+---
+
+The pagination module provides the `Cursor` class and `cursor()` function for elegant iteration over paginated API responses.
+
+## Cursor Class
+
+A cursor for handling pagination in API calls. Wraps any API method and provides elegant pagination through `.items()` and `.pages()` methods.
+
+### Constructor
+
+```python
+Cursor(method, *args, **kwargs)
+```
+
+<ParamField path="method" type="PaginatableMethod" required>
+  The API method to call for each page. Must support `pagination_token`, `next_token`, and/or `max_results` parameters.
+</ParamField>
+
+<ParamField path="*args" type="Any">
+  Positional arguments to pass to the API method
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Keyword arguments to pass to the API method (excluding pagination params)
+</ParamField>
+
+**Raises:**
+- `PaginationError` - If the method doesn't support pagination parameters
+
+### Methods
+
+#### items()
+
+Iterate over individual items from paginated responses.
+
+```python
+items(limit: Optional[int] = None) -> Iterator[Any]
+```
+
+<ParamField path="limit" type="int" default="None">
+  Maximum number of items to return (None for unlimited)
+</ParamField>
+
+**Returns:** Iterator yielding individual items from the API responses
+
+#### pages()
+
+Iterate over pages of responses.
+
+```python
+pages(limit: Optional[int] = None) -> Iterator[ResponseType]
+```
+
+<ParamField path="limit" type="int" default="None">
+  Maximum number of pages to return (None for unlimited)
+</ParamField>
+
+**Returns:** Iterator yielding page responses from the API (same type as the wrapped method returns)
+
+### Example Usage
+
+```python
+from xdk import X
+from xdk.paginator import Cursor
+
+client = X(bearer_token="your_token")
+
+# For methods requiring arguments
+cursor = Cursor(client.users.get_users_blocking, "user_id", max_results=100)
+for user in cursor.items(250):  # user is properly typed
+    print(user.name)
+
+# For methods with query parameters
+cursor = Cursor(client.posts.search_posts_recent, "python", max_results=50)
+for page in cursor.pages(5):  # page is SearchResponse type
+    print(f"Got {len(page.data)} posts")
+```
+
+---
+
+## cursor() Function
+
+Factory function for creating cursors with proper type inference and validation.
+
+```python
+cursor(method: PaginatableMethod[ResponseType], *args, **kwargs) -> Cursor[ResponseType]
+```
+
+<ParamField path="method" type="PaginatableMethod" required>
+  The API method to wrap. Must support pagination parameters.
+</ParamField>
+
+<ParamField path="*args" type="Any">
+  Positional arguments to pass to the method
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Keyword arguments to pass to the method
+</ParamField>
+
+**Returns:** A properly typed Cursor instance
+
+**Raises:**
+- `PaginationError` - If the method doesn't support pagination parameters
+
+### Example Usage
+
+```python
+from xdk import X
+from xdk.paginator import cursor
+
+client = X(bearer_token="your_token")
+
+# Type is inferred as Cursor[GetUsersResponse]
+users_cursor = cursor(client.users.get_users_blocking, "user_id", max_results=100)
+
+# page is typed as GetUsersResponse
+for page in users_cursor.pages(5):
+    print(len(page.data))
+
+# For search methods
+search_cursor = cursor(client.posts.search_posts_recent, "python", max_results=50)
+for tweet in search_cursor.items(100):
+    print(tweet.text)
+```
+
+---
+
+## Types and Protocols
+
+### PaginatableMethod
+
+Protocol for methods that support pagination. A method is considered paginatable if it accepts `pagination_token` and/or `max_results` parameters.
+
+```python
+class PaginatableMethod(Protocol[ResponseType]):
+    def __call__(
+        self,
+        *args,
+        pagination_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+        **kwargs,
+    ) -> ResponseType: ...
+```
+
+### PaginationError
+
+Exception raised when a non-paginatable method is passed to Cursor.
+
+```python
+class PaginationError(TypeError):
+    pass
+```

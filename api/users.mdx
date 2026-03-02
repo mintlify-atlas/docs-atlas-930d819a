@@ -1,0 +1,441 @@
+---
+title: "Users"
+description: "API reference for the UsersClient"
+---
+
+The `UsersClient` provides methods for interacting with user-related endpoints of the X API. Access it via `client.users`.
+
+## get_me
+
+Retrieves details of the authenticated user.
+
+```python
+response = client.users.get_me(
+    user_fields=["created_at", "description", "profile_image_url"],
+    expansions=["pinned_tweet_id"],
+    tweet_fields=["created_at", "text"]
+)
+```
+
+### Parameters
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display. Available fields include:
+  - `created_at`
+  - `description`
+  - `entities`
+  - `id`
+  - `location`
+  - `name`
+  - `pinned_tweet_id`
+  - `profile_image_url`
+  - `protected`
+  - `public_metrics`
+  - `url`
+  - `username`
+  - `verified`
+  - `verified_type`
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand. Available expansions include:
+  - `pinned_tweet_id`
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display when expanding pinned tweets.
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="User">
+  The authenticated User object containing user details.
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+<ResponseField name="includes" type="Expansions" optional>
+  Expanded data such as pinned tweets.
+</ResponseField>
+
+## get_by_id
+
+Retrieves details of a specific User by their ID.
+
+```python
+response = client.users.get_by_id(
+    id="12345678",
+    user_fields=["created_at", "description", "public_metrics"]
+)
+```
+
+### Parameters
+
+<ParamField path="id" type="str" required>
+  The ID of the User to lookup.
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display.
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand.
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display.
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="User">
+  The User object matching the specified ID.
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+<ResponseField name="includes" type="Expansions" optional>
+  Expanded data if requested.
+</ResponseField>
+
+## get_by_username
+
+Retrieves details of a specific User by their username.
+
+```python
+response = client.users.get_by_username(
+    username="xdevelopers",
+    user_fields=["created_at", "description", "public_metrics"]
+)
+```
+
+### Parameters
+
+<ParamField path="username" type="str" required>
+  The username of the User to lookup (without the @ symbol).
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display.
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand.
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display.
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="User">
+  The User object matching the specified username.
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+<ResponseField name="includes" type="Expansions" optional>
+  Expanded data if requested.
+</ResponseField>
+
+## search
+
+Retrieves a list of Users matching a search query. This method automatically paginates through all results.
+
+```python
+# Iterate through all results
+for page in client.users.search(
+    query="developer",
+    max_results=10,
+    user_fields=["created_at", "description", "public_metrics"]
+):
+    for user in page.data:
+        print(user)
+```
+
+```python
+# Get just the first page
+pages = client.users.search(query="developer", max_results=10)
+first_page = next(pages)
+```
+
+### Parameters
+
+<ParamField path="query" type="str" required>
+  The query string by which to search for users.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (1-100). Defaults to 10.
+</ParamField>
+
+<ParamField path="next_token" type="str" optional>
+  This parameter is used to get the next 'page' of results. The value is pulled directly from the response.
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display.
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand.
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display.
+</ParamField>
+
+### Response
+
+Returns an iterator that yields `SearchResponse` objects for each page.
+
+<ResponseField name="data" type="List[User]">
+  A list of User objects matching the search query.
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Metadata about the response including pagination tokens.
+  
+  <Expandable title="meta properties">
+    <ResponseField name="result_count" type="int">
+      The number of results in this response.
+    </ResponseField>
+    
+    <ResponseField name="next_token" type="str" optional>
+      Token to retrieve the next page of results.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+## follow_user
+
+Causes the authenticated user to follow a specific user by their ID.
+
+```python
+from xdk.users.models import FollowUserRequest
+
+response = client.users.follow_user(
+    id="12345678",  # Your authenticated user ID
+    body=FollowUserRequest(target_user_id="87654321")
+)
+```
+
+### Parameters
+
+<ParamField path="id" type="str" required>
+  The ID of the authenticated source User that is requesting to follow the target User.
+</ParamField>
+
+<ParamField path="body" type="FollowUserRequest" optional>
+  Request body containing the target user ID.
+  
+  <Expandable title="FollowUserRequest properties">
+    <ParamField path="target_user_id" type="str" required>
+      The ID of the User to follow.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="object">
+  Response data indicating the follow status.
+  
+  <Expandable title="data properties">
+    <ResponseField name="following" type="bool">
+      Whether the authenticated user is now following the target user.
+    </ResponseField>
+    
+    <ResponseField name="pending_follow" type="bool" optional>
+      Whether the follow request is pending (for protected accounts).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+## get_followers
+
+Retrieves a list of Users who follow a specific User by their ID. This method automatically paginates through all results.
+
+```python
+# Iterate through all followers
+for page in client.users.get_followers(
+    id="12345678",
+    max_results=100,
+    user_fields=["created_at", "description", "public_metrics"]
+):
+    for follower in page.data:
+        print(follower)
+```
+
+```python
+# Get just the first page
+pages = client.users.get_followers(id="12345678", max_results=100)
+first_page = next(pages)
+```
+
+### Parameters
+
+<ParamField path="id" type="str" required>
+  The ID of the User to lookup followers for.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (1-1000). Defaults to 100.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  This parameter is used to get a specified 'page' of results.
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display.
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand.
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display.
+</ParamField>
+
+### Response
+
+Returns an iterator that yields `GetFollowersResponse` objects for each page.
+
+<ResponseField name="data" type="List[User]">
+  A list of User objects representing followers.
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Metadata about the response including pagination tokens.
+  
+  <Expandable title="meta properties">
+    <ResponseField name="result_count" type="int">
+      The number of results in this response.
+    </ResponseField>
+    
+    <ResponseField name="next_token" type="str" optional>
+      Token to retrieve the next page of results.
+    </ResponseField>
+    
+    <ResponseField name="previous_token" type="str" optional>
+      Token to retrieve the previous page of results.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+<ResponseField name="includes" type="Expansions" optional>
+  Expanded data if requested.
+</ResponseField>
+
+## get_following
+
+Retrieves a list of Users followed by a specific User by their ID. This method automatically paginates through all results.
+
+```python
+# Iterate through all users being followed
+for page in client.users.get_following(
+    id="12345678",
+    max_results=100,
+    user_fields=["created_at", "description", "public_metrics"]
+):
+    for user in page.data:
+        print(user)
+```
+
+```python
+# Get just the first page
+pages = client.users.get_following(id="12345678", max_results=100)
+first_page = next(pages)
+```
+
+### Parameters
+
+<ParamField path="id" type="str" required>
+  The ID of the User to lookup following for.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (1-1000). Defaults to 100.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  This parameter is used to get a specified 'page' of results.
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  A comma separated list of User fields to display.
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  A comma separated list of fields to expand.
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  A comma separated list of Tweet fields to display.
+</ParamField>
+
+### Response
+
+Returns an iterator that yields `GetFollowingResponse` objects for each page.
+
+<ResponseField name="data" type="List[User]">
+  A list of User objects being followed.
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Metadata about the response including pagination tokens.
+  
+  <Expandable title="meta properties">
+    <ResponseField name="result_count" type="int">
+      The number of results in this response.
+    </ResponseField>
+    
+    <ResponseField name="next_token" type="str" optional>
+      Token to retrieve the next page of results.
+    </ResponseField>
+    
+    <ResponseField name="previous_token" type="str" optional>
+      Token to retrieve the previous page of results.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="List" optional>
+  Any errors encountered during the request.
+</ResponseField>
+
+<ResponseField name="includes" type="Expansions" optional>
+  Expanded data if requested.
+</ResponseField>
+
+## Authentication
+
+All methods in the UsersClient require authentication. The authentication method used depends on the endpoint:
+
+- **OAuth 2.0 User Context**: Required for `get_me`, `follow_user`, and `search`
+- **OAuth 1.0a User Context**: Supported as an alternative for most endpoints
+- **App-only (Bearer Token)**: Supported for read-only endpoints like `get_by_id`, `get_by_username`, `get_followers`, and `get_following`
+
+See the [Authentication guide](/auth/overview) for setup instructions.

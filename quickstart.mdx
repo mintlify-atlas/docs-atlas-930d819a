@@ -1,80 +1,345 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Post your first tweet with XDK Python in minutes"
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide walks you through creating and posting your first tweet using XDK Python. You'll learn how to authenticate, create a post, and handle the response.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Make sure you've completed the [installation](/installation) and have your API credentials ready.
 </Note>
+
+## Your First Tweet in 3 Steps
+
+<Steps>
+  <Step title="Install and Import">
+    First, ensure XDK is installed and import the required modules:
+    
+    ```bash
+    pip install xdk python-dotenv
+    ```
+    
+    ```python
+    from xdk import Client
+    from xdk.posts.models import CreateRequest
+    import os
+    from dotenv import load_dotenv
+    
+    # Load environment variables
+    load_dotenv()
+    ```
+  </Step>
+  
+  <Step title="Initialize the Client">
+    Create a client instance with your authentication credentials:
+    
+    <CodeGroup>
+    ```python OAuth 2.0 (Access Token)
+    # If you already have an access token
+    client = Client(
+        access_token=os.getenv("X_ACCESS_TOKEN")
+    )
+    ```
+    
+    ```python OAuth 1.0a
+    from xdk.oauth1_auth import OAuth1
+    
+    auth = OAuth1(
+        api_key=os.getenv("X_API_KEY"),
+        api_secret=os.getenv("X_API_SECRET"),
+        access_token=os.getenv("X_ACCESS_TOKEN"),
+        access_token_secret=os.getenv("X_ACCESS_TOKEN_SECRET"),
+        callback="oob"
+    )
+    
+    client = Client(auth=auth)
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Post a Tweet">
+    Create and send your tweet:
+    
+    ```python
+    # Create a post request
+    request = CreateRequest(text="Hello from XDK Python! 🚀")
+    
+    # Post the tweet
+    response = client.posts.create(body=request)
+    
+    # Print the result
+    print(f"Success! Tweet ID: {response.data.id}")
+    print(f"Tweet text: {response.data.text}")
+    ```
+  </Step>
+</Steps>
+
+## Complete Working Example
+
+Here's a complete script that posts a tweet:
+
+```python example.py
+#!/usr/bin/env python3
+"""Post a tweet using XDK Python SDK."""
+
+from xdk import Client
+from xdk.posts.models import CreateRequest
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+def main():
+    """Post a tweet using XDK."""
+    # Initialize client with access token
+    client = Client(
+        access_token=os.getenv("X_ACCESS_TOKEN")
+    )
+    
+    # Create the tweet
+    request = CreateRequest(
+        text="Just posted this using the XDK Python SDK! 🐍✨"
+    )
+    
+    try:
+        # Send the request
+        response = client.posts.create(body=request)
+        
+        # Handle success
+        print("✅ Tweet posted successfully!")
+        print(f"   Tweet ID: {response.data.id}")
+        print(f"   Text: {response.data.text}")
+        
+    except Exception as e:
+        # Handle errors
+        print(f"❌ Error posting tweet: {e}")
+
+if __name__ == "__main__":
+    main()
+```
+
+<Tip>
+Create a `.env` file in your project directory with your credentials:
+```bash
+X_ACCESS_TOKEN="your_access_token_here"
+```
+</Tip>
+
+## Advanced Examples
+
+### Post with Media
+
+Create a tweet with attached images:
+
+```python
+from xdk.posts.models import CreateRequest, CreateRequestMedia
+
+# First, upload media (assuming you have media IDs)
+request = CreateRequest(
+    text="Check out this image! 📸",
+    media=CreateRequestMedia(
+        media_ids=["1234567890", "0987654321"]
+    )
+)
+
+response = client.posts.create(body=request)
+print(f"Posted tweet with media: {response.data.id}")
+```
+
+### Reply to a Tweet
+
+Post a reply to an existing tweet:
+
+```python
+from xdk.posts.models import CreateRequest, CreateRequestReply
+
+request = CreateRequest(
+    text="@username Great post! Thanks for sharing.",
+    reply=CreateRequestReply(
+        in_reply_to_tweet_id="1234567890123456789"
+    )
+)
+
+response = client.posts.create(body=request)
+print(f"Posted reply: {response.data.id}")
+```
+
+### Post with a Poll
+
+Create a tweet with a poll:
+
+```python
+from xdk.posts.models import CreateRequest, CreateRequestPoll
+
+request = CreateRequest(
+    text="What's your favorite Python feature?",
+    poll=CreateRequestPoll(
+        options=["Type hints", "List comprehensions", "Decorators", "f-strings"],
+        duration_minutes=1440  # 24 hours
+    )
+)
+
+response = client.posts.create(body=request)
+print(f"Posted poll: {response.data.id}")
+```
+
+### Quote Tweet
+
+Quote an existing tweet:
+
+```python
+request = CreateRequest(
+    text="This is exactly what I was looking for! 💯",
+    quote_tweet_id="1234567890123456789"
+)
+
+response = client.posts.create(body=request)
+print(f"Posted quote tweet: {response.data.id}")
+```
+
+## Reading Tweets
+
+### Get Tweet by ID
+
+```python
+# Fetch a specific tweet
+tweet = client.posts.get_by_id(
+    id="1234567890123456789",
+    tweet_fields=["created_at", "author_id", "public_metrics"]
+)
+
+print(f"Tweet: {tweet.data.text}")
+print(f"Created: {tweet.data.created_at}")
+```
+
+### Search Recent Tweets
+
+```python
+# Search for tweets (automatically paginates)
+for page in client.posts.search_recent(
+    query="python programming",
+    max_results=10
+):
+    for tweet in page.data or []:
+        print(f"@{tweet.author_id}: {tweet.text}")
+```
+
+### Get Multiple Tweets
+
+```python
+# Fetch multiple tweets by ID
+response = client.posts.get_by_ids(
+    ids=["1234567890", "0987654321", "1111222233"],
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+for tweet in response.data or []:
+    print(f"Tweet {tweet.id}: {tweet.text}")
+```
+
+## Delete a Tweet
+
+```python
+# Delete a tweet you own
+response = client.posts.delete(id="1234567890123456789")
+
+if response.data.get("deleted"):
+    print("Tweet deleted successfully")
+```
+
+## Error Handling
+
+Always handle potential errors when making API requests:
+
+```python
+import requests
+from xdk.posts.models import CreateRequest
+
+try:
+    request = CreateRequest(text="My tweet")
+    response = client.posts.create(body=request)
+    print(f"Success: {response.data.id}")
+    
+except requests.HTTPError as e:
+    print(f"HTTP Error: {e.response.status_code}")
+    print(f"Details: {e.response.text}")
+    
+except ValueError as e:
+    print(f"Validation Error: {e}")
+    
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+## Common Response Fields
+
+When you create a post, the response contains:
+
+- `response.data.id` - The unique ID of the created tweet
+- `response.data.text` - The text content of the tweet
+- `response.errors` - Any errors that occurred (if applicable)
+
+## Rate Limits
+
+<Warning>
+The X API has rate limits. For posting tweets:
+- **User context**: Limited number of tweets per 24 hours
+- **App context**: Different limits apply
+
+Check the [X API documentation](https://docs.x.com) for current rate limits.
+</Warning>
+
+## Next Steps
+
+Now that you've posted your first tweet, explore more features:
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/auth/overview">
+    Learn about OAuth flows and token management
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/client">
+    Explore all available endpoints and methods
+  </Card>
+  
+  <Card title="Users API" icon="user" href="/api/users">
+    Work with user profiles and relationships
+  </Card>
+  
+  <Card title="Streaming" icon="stream" href="/api/streaming">
+    Set up real-time tweet streaming
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication errors">
+    If you get authentication errors:
+    
+    1. Verify your credentials are correct
+    2. Check that your access token hasn't expired
+    3. Ensure your app has the correct permissions
+    4. For OAuth1, verify all four credentials (API key, secret, token, token secret)
+  </Accordion>
+  
+  <Accordion title="Rate limit errors">
+    If you hit rate limits:
+    
+    1. Check the response headers for rate limit info
+    2. Implement exponential backoff
+    3. Consider upgrading your API access level
+  </Accordion>
+  
+  <Accordion title="Validation errors">
+    If your request is rejected:
+    
+    1. Check tweet text length (max 280 characters)
+    2. Verify media IDs are valid
+    3. Ensure poll options meet requirements (2-4 options)
+    4. Check that referenced tweet IDs exist
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,595 @@
+---
+title: 'PostsClient'
+description: 'API reference for the Posts client - create, retrieve, search, and manage posts'
+icon: 'message'
+---
+
+The `PostsClient` provides methods for interacting with posts (tweets) on X. It handles authentication, pagination, and request/response management automatically.
+
+## Initialization
+
+The PostsClient is accessed through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(bearer_token="your_bearer_token")
+posts = client.posts
+```
+
+---
+
+## Methods
+
+### create()
+
+Creates a new post for the authenticated user, or edits an existing post when edit_options are provided.
+
+<ParamField path="body" type="CreateRequest" required>
+  The request body containing post details
+  
+  <Expandable title="CreateRequest Properties">
+    <ParamField path="text" type="string">
+      The text content of the post (max 280 characters)
+    </ParamField>
+    
+    <ParamField path="reply" type="object">
+      Reply settings if this is a reply to another post
+      
+      <Expandable title="Reply Properties">
+        <ParamField path="in_reply_to_tweet_id" type="string">
+          The ID of the post being replied to
+        </ParamField>
+        
+        <ParamField path="exclude_reply_user_ids" type="string[]">
+          User IDs to exclude from the reply
+        </ParamField>
+        
+        <ParamField path="auto_populate_reply_metadata" type="boolean">
+          Automatically populate reply metadata
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="quote_tweet_id" type="string">
+      The ID of the post to quote
+    </ParamField>
+    
+    <ParamField path="media" type="object">
+      Media attachments for the post
+      
+      <Expandable title="Media Properties">
+        <ParamField path="media_ids" type="string[]">
+          Array of media IDs (uploaded via Media API)
+        </ParamField>
+        
+        <ParamField path="tagged_user_ids" type="string[]">
+          User IDs to tag in the media
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="poll" type="object">
+      Poll options for the post
+      
+      <Expandable title="Poll Properties">
+        <ParamField path="options" type="string[]">
+          Poll option texts (2-4 options)
+        </ParamField>
+        
+        <ParamField path="duration_minutes" type="integer">
+          Duration of the poll in minutes
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="geo" type="object">
+      Geographic location data
+      
+      <Expandable title="Geo Properties">
+        <ParamField path="place_id" type="string">
+          The place ID for the location
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="edit_options" type="object">
+      Options for editing an existing post
+      
+      <Expandable title="Edit Options Properties">
+        <ParamField path="previous_post_id" type="string">
+          The ID of the post being edited
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="reply_settings" type="string">
+      Who can reply: "everyone", "mentionedUsers", or "following"
+    </ParamField>
+    
+    <ParamField path="for_super_followers_only" type="boolean">
+      Whether the post is for super followers only
+    </ParamField>
+    
+    <ParamField path="direct_message_deep_link" type="string">
+      Deep link for direct messages
+    </ParamField>
+    
+    <ParamField path="card_uri" type="string">
+      Card URI for the post
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns:** `CreateResponse`
+
+<ResponseField name="data" type="object">
+  The created post data
+  
+  <Expandable title="Response Properties">
+    <ResponseField name="id" type="string">
+      The ID of the created post
+    </ResponseField>
+    
+    <ResponseField name="text" type="string">
+      The text content of the created post
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Array of error objects if any occurred
+</ResponseField>
+
+**Example:**
+
+```python
+from xdk.posts.models import CreateRequest
+
+# Create a simple post
+request = CreateRequest(text="Hello, world!")
+response = client.posts.create(body=request)
+print(f"Created post: {response.data.id}")
+
+# Create a post with media
+request = CreateRequest(
+    text="Check out this image!",
+    media={"media_ids": ["1234567890"]}
+)
+response = client.posts.create(body=request)
+
+# Create a reply
+request = CreateRequest(
+    text="Great post!",
+    reply={"in_reply_to_tweet_id": "9876543210"}
+)
+response = client.posts.create(body=request)
+```
+
+---
+
+### get_by_id()
+
+Retrieves details of a specific post by its ID.
+
+<ParamField path="id" type="string" required>
+  A single post ID
+</ParamField>
+
+<ParamField path="tweet_fields" type="string[]">
+  Tweet fields to include in the response. Options: "attachments", "author_id", "context_annotations", "conversation_id", "created_at", "edit_controls", "entities", "geo", "id", "in_reply_to_user_id", "lang", "public_metrics", "referenced_tweets", "reply_settings", "source", "text", "withheld"
+</ParamField>
+
+<ParamField path="expansions" type="string[]">
+  Fields to expand. Options: "attachments.media_keys", "attachments.poll_ids", "author_id", "entities.mentions.username", "geo.place_id", "in_reply_to_user_id", "referenced_tweets.id", "referenced_tweets.id.author_id"
+</ParamField>
+
+<ParamField path="media_fields" type="string[]">
+  Media fields to display when media is expanded
+</ParamField>
+
+<ParamField path="poll_fields" type="string[]">
+  Poll fields to display when polls are expanded
+</ParamField>
+
+<ParamField path="user_fields" type="string[]">
+  User fields to display when users are expanded
+</ParamField>
+
+<ParamField path="place_fields" type="string[]">
+  Place fields to display when places are expanded
+</ParamField>
+
+**Returns:** `GetByIdResponse`
+
+<ResponseField name="data" type="object">
+  The post object with requested fields
+</ResponseField>
+
+<ResponseField name="includes" type="object">
+  Expanded objects (users, media, polls, places) based on expansions parameter
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Array of error objects if any occurred
+</ResponseField>
+
+**Example:**
+
+```python
+# Get basic post data
+post = client.posts.get_by_id(id="1234567890")
+print(f"Post text: {post.data.text}")
+
+# Get post with detailed fields
+post = client.posts.get_by_id(
+    id="1234567890",
+    tweet_fields=["created_at", "public_metrics", "author_id"],
+    expansions=["author_id"],
+    user_fields=["username", "name", "profile_image_url"]
+)
+print(f"Author: {post.includes.users[0].name}")
+print(f"Likes: {post.data.public_metrics.like_count}")
+```
+
+---
+
+### get_by_ids()
+
+Retrieves details of multiple posts by their IDs (up to 100 per request).
+
+<ParamField path="ids" type="string[]" required>
+  A list of post IDs (max 100)
+</ParamField>
+
+<ParamField path="tweet_fields" type="string[]">
+  Tweet fields to include in the response
+</ParamField>
+
+<ParamField path="expansions" type="string[]">
+  Fields to expand
+</ParamField>
+
+<ParamField path="media_fields" type="string[]">
+  Media fields to display when media is expanded
+</ParamField>
+
+<ParamField path="poll_fields" type="string[]">
+  Poll fields to display when polls are expanded
+</ParamField>
+
+<ParamField path="user_fields" type="string[]">
+  User fields to display when users are expanded
+</ParamField>
+
+<ParamField path="place_fields" type="string[]">
+  Place fields to display when places are expanded
+</ParamField>
+
+**Returns:** `GetByIdsResponse`
+
+<ResponseField name="data" type="array">
+  Array of post objects
+</ResponseField>
+
+<ResponseField name="includes" type="object">
+  Expanded objects based on expansions parameter
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Array of error objects if any occurred
+</ResponseField>
+
+**Example:**
+
+```python
+# Get multiple posts
+posts = client.posts.get_by_ids(
+    ids=["1234567890", "9876543210", "1111111111"],
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+for post in posts.data:
+    print(f"Post {post.id}: {post.text}")
+```
+
+---
+
+### delete()
+
+Deletes a specific post by its ID (must be owned by the authenticated user).
+
+<ParamField path="id" type="string" required>
+  The ID of the post to delete
+</ParamField>
+
+**Returns:** `DeleteResponse`
+
+<ResponseField name="data" type="object">
+  Deletion confirmation
+  
+  <Expandable title="Response Properties">
+    <ResponseField name="deleted" type="boolean">
+      Whether the post was successfully deleted
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Array of error objects if any occurred
+</ResponseField>
+
+**Example:**
+
+```python
+# Delete a post
+response = client.posts.delete(id="1234567890")
+if response.data.deleted:
+    print("Post deleted successfully")
+```
+
+---
+
+### search_recent()
+
+Searches for posts from the last 7 days matching a query. Returns an iterator for automatic pagination.
+
+<ParamField path="query" type="string" required>
+  Search query using X's search syntax (e.g., "python #coding")
+</ParamField>
+
+<ParamField path="start_time" type="string">
+  Start time in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
+</ParamField>
+
+<ParamField path="end_time" type="string">
+  End time in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
+</ParamField>
+
+<ParamField path="since_id" type="string">
+  Returns results with post ID greater than (more recent than) this ID
+</ParamField>
+
+<ParamField path="until_id" type="string">
+  Returns results with post ID less than (older than) this ID
+</ParamField>
+
+<ParamField path="max_results" type="integer">
+  Maximum number of results per page (10-100, default 10)
+</ParamField>
+
+<ParamField path="pagination_token" type="string">
+  Token to get a specific page of results
+</ParamField>
+
+<ParamField path="sort_order" type="string">
+  Sort order: "recency" or "relevancy"
+</ParamField>
+
+<ParamField path="tweet_fields" type="string[]">
+  Tweet fields to include
+</ParamField>
+
+<ParamField path="expansions" type="string[]">
+  Fields to expand
+</ParamField>
+
+<ParamField path="media_fields" type="string[]">
+  Media fields to display
+</ParamField>
+
+<ParamField path="poll_fields" type="string[]">
+  Poll fields to display
+</ParamField>
+
+<ParamField path="user_fields" type="string[]">
+  User fields to display
+</ParamField>
+
+<ParamField path="place_fields" type="string[]">
+  Place fields to display
+</ParamField>
+
+**Returns:** `Iterator[SearchRecentResponse]` - Yields one page at a time
+
+<ResponseField name="data" type="array">
+  Array of posts matching the search query
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Metadata about the search results including pagination tokens
+</ResponseField>
+
+<ResponseField name="includes" type="object">
+  Expanded objects based on expansions parameter
+</ResponseField>
+
+**Example:**
+
+```python
+# Search recent posts with automatic pagination
+for page in client.posts.search_recent(
+    query="python programming",
+    max_results=100,
+    tweet_fields=["created_at", "public_metrics"]
+):
+    for post in page.data:
+        print(f"{post.text} - Likes: {post.public_metrics.like_count}")
+
+# Get just the first page
+results = next(client.posts.search_recent(query="AI"))
+print(f"Found {len(results.data)} posts")
+
+# Search with time range
+from datetime import datetime, timedelta
+
+end_time = datetime.utcnow()
+start_time = end_time - timedelta(days=3)
+
+for page in client.posts.search_recent(
+    query="#python",
+    start_time=start_time.isoformat() + "Z",
+    end_time=end_time.isoformat() + "Z",
+    sort_order="relevancy"
+):
+    print(f"Page has {len(page.data)} posts")
+```
+
+---
+
+### get_liking_users()
+
+Retrieves a list of users who liked a specific post. Returns an iterator for automatic pagination.
+
+<ParamField path="id" type="string" required>
+  A single post ID
+</ParamField>
+
+<ParamField path="max_results" type="integer">
+  Maximum number of results per page (1-100, default 100)
+</ParamField>
+
+<ParamField path="pagination_token" type="string">
+  Token to get a specific page of results
+</ParamField>
+
+<ParamField path="user_fields" type="string[]">
+  User fields to display. Options: "created_at", "description", "entities", "id", "location", "name", "pinned_tweet_id", "profile_image_url", "protected", "public_metrics", "url", "username", "verified", "withheld"
+</ParamField>
+
+<ParamField path="expansions" type="string[]">
+  Fields to expand
+</ParamField>
+
+<ParamField path="tweet_fields" type="string[]">
+  Tweet fields for expanded tweets
+</ParamField>
+
+**Returns:** `Iterator[GetLikingUsersResponse]` - Yields one page at a time
+
+<ResponseField name="data" type="array">
+  Array of user objects who liked the post
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Metadata including pagination tokens and result count
+</ResponseField>
+
+<ResponseField name="includes" type="object">
+  Expanded objects based on expansions parameter
+</ResponseField>
+
+**Example:**
+
+```python
+# Get all users who liked a post
+for page in client.posts.get_liking_users(
+    id="1234567890",
+    user_fields=["username", "name", "public_metrics"]
+):
+    for user in page.data:
+        print(f"@{user.username} ({user.name}) - {user.public_metrics.followers_count} followers")
+
+# Get just the first 50 users
+results = next(client.posts.get_liking_users(
+    id="1234567890",
+    max_results=50
+))
+print(f"{len(results.data)} users liked this post")
+```
+
+---
+
+## Authentication
+
+The PostsClient supports multiple authentication methods:
+
+- **Bearer Token**: App-only authentication (read operations)
+- **OAuth 2.0 User Context**: User authentication (read and write)
+- **OAuth 1.0a**: Legacy user authentication (read and write)
+
+The client automatically selects the appropriate authentication method based on:
+1. Available credentials
+2. Endpoint requirements
+3. Operation type (read vs write)
+
+For write operations (create, delete), OAuth is required:
+
+```python
+from xdk import Client
+
+# OAuth 2.0 User Context
+client = Client(access_token="user_access_token")
+
+# OAuth 1.0a
+from xdk.auth import OAuth1
+auth = OAuth1(
+    consumer_key="your_key",
+    consumer_secret="your_secret",
+    access_token="user_token",
+    access_token_secret="user_secret"
+)
+client = Client(auth=auth)
+```
+
+---
+
+## Pagination
+
+Methods that return multiple results (`search_recent`, `get_liking_users`, etc.) return iterators that automatically handle pagination:
+
+```python
+# Automatic pagination - iterate through all results
+for page in client.posts.search_recent(query="AI"):
+    for post in page.data:
+        process_post(post)
+
+# Manual pagination - get specific pages
+page1 = next(client.posts.search_recent(query="AI"))
+page2 = next(client.posts.search_recent(
+    query="AI",
+    pagination_token=page1.meta.next_token
+))
+
+# Get just first page and stop
+results = next(client.posts.search_recent(query="AI"))
+```
+
+---
+
+## Error Handling
+
+All methods may raise HTTP errors. Wrap calls in try-except blocks:
+
+```python
+from requests.exceptions import HTTPError
+
+try:
+    post = client.posts.get_by_id(id="invalid_id")
+except HTTPError as e:
+    if e.response.status_code == 404:
+        print("Post not found")
+    elif e.response.status_code == 401:
+        print("Authentication failed")
+    else:
+        print(f"Error: {e}")
+except ValueError as e:
+    print(f"Authentication error: {e}")
+```
+
+---
+
+## Rate Limits
+
+X API has rate limits that vary by endpoint and authentication method. The client does not automatically handle rate limiting, but you can add delays:
+
+```python
+import time
+
+for page in client.posts.search_recent(query="python"):
+    for post in page.data:
+        process_post(post)
+    time.sleep(1)  # Wait 1 second between pages
+```
+
+Consider implementing exponential backoff for production applications.

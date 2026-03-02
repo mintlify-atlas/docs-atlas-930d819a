@@ -1,0 +1,83 @@
+---
+title: Authentication Overview
+description: Learn about the authentication methods supported by XDK Python
+---
+
+XDK Python supports multiple authentication methods for the X API, each designed for different use cases and security requirements.
+
+## Authentication Methods
+
+XDK Python provides three primary authentication methods:
+
+### OAuth 2.0 PKCE (Recommended)
+
+OAuth 2.0 with PKCE (Proof Key for Code Exchange) is the recommended authentication method for user-context applications. It provides enhanced security and supports automatic token refresh.
+
+- **Best for:** Web applications, mobile apps, desktop applications
+- **User context:** Yes
+- **Token refresh:** Automatic
+- **Security:** High (PKCE protects against authorization code interception)
+
+[Learn more about OAuth 2.0 PKCE →](/auth/oauth2)
+
+### OAuth 1.0a
+
+OAuth 1.0a is a traditional authentication method that uses HMAC-SHA1 signatures. It's useful for legacy applications or when OAuth 2.0 is not available.
+
+- **Best for:** Legacy applications, server-to-server communication
+- **User context:** Yes
+- **Token refresh:** Manual re-authorization required
+- **Security:** High (cryptographic signatures)
+
+[Learn more about OAuth 1.0a →](/auth/oauth1)
+
+### Bearer Token
+
+Bearer token authentication uses a simple app-only token for read-only operations that don't require user context.
+
+- **Best for:** Read-only operations, analytics, monitoring
+- **User context:** No
+- **Token refresh:** Not required (long-lived tokens)
+- **Security:** Moderate (protect your token carefully)
+
+[Learn more about Bearer Token →](/auth/bearer-token)
+
+## Quick Start
+
+Here's a quick comparison to help you choose the right authentication method:
+
+| Feature | OAuth 2.0 PKCE | OAuth 1.0a | Bearer Token |
+|---------|---------------|------------|-------------|
+| User Context | ✓ | ✓ | ✗ |
+| Write Operations | ✓ | ✓ | ✗ |
+| Auto Refresh | ✓ | ✗ | N/A |
+| Setup Complexity | Medium | High | Low |
+| Security | High | High | Moderate |
+
+## Security Best Practices
+
+<Warning>
+Never commit credentials to version control. Use environment variables or secure credential management systems.
+</Warning>
+
+- Store credentials securely using environment variables or secret management services
+- Use HTTPS for all callback URLs and API requests
+- Implement proper token storage with encryption
+- Rotate credentials regularly
+- Monitor token usage and revoke compromised tokens immediately
+
+## Next Steps
+
+Choose an authentication method to get started:
+
+<CardGroup cols={3}>
+  <Card title="OAuth 2.0 PKCE" icon="shield-check" href="/auth/oauth2">
+    Modern, secure authentication with automatic token refresh
+  </Card>
+  <Card title="OAuth 1.0a" icon="key" href="/auth/oauth1">
+    Traditional authentication with cryptographic signatures
+  </Card>
+  <Card title="Bearer Token" icon="ticket" href="/auth/bearer-token">
+    Simple app-only authentication for read operations
+  </Card>
+</CardGroup>

@@ -1,0 +1,118 @@
+---
+title: 'Community Notes'
+description: 'Client for community notes operations'
+---
+
+## CommunityNotesClient
+
+The `CommunityNotesClient` provides methods for creating, managing, and searching Community Notes on X.
+
+### create
+
+Creates a community note.
+
+```python
+from xdk.community_notes.models import CreateRequest
+
+response = client.community_notes.create(
+    body=CreateRequest(
+        tweet_id="1234567890",
+        text="This post may contain misleading information.",
+        helpful=True
+    )
+)
+```
+
+<ParamField path="body" type="CreateRequest" optional>
+  Request body containing the community note details.
+</ParamField>
+
+<ResponseField name="CreateResponse" type="object">
+  Response containing the created community note.
+</ResponseField>
+
+### search_written
+
+Returns all the community notes written by the user.
+
+```python
+for page in client.community_notes.search_written(
+    test_mode=False,
+    max_results=50,
+    note_fields=["id", "text", "created_at", "helpful_count"]
+):
+    for note in page.data:
+        print(f"Note: {note.text}")
+```
+
+<ParamField path="test_mode" type="bool" required>
+  If true, return the notes the caller wrote for the test. If false, return the notes the caller wrote on the product.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  Pagination token to get next set of posts eligible for notes.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  Max results to return.
+</ParamField>
+
+<ParamField path="note_fields" type="List[str]" optional>
+  A comma separated list of Note fields to display.
+</ParamField>
+
+<ResponseField name="SearchWrittenResponse" type="Iterator">
+  Iterator that yields pages of community notes. Automatically handles pagination.
+</ResponseField>
+
+### search_eligible_posts
+
+Returns all the posts that are eligible for community notes.
+
+```python
+for page in client.community_notes.search_eligible_posts(
+    test_mode=False,
+    max_results=20,
+    post_selection="feed_size: small, feed_lang: en"
+):
+    for post in page.data:
+        print(f"Eligible post: {post.id}")
+```
+
+<ParamField path="test_mode" type="bool" required>
+  If true, return a list of posts that are for the test. If false, return a list of posts that the bots can write proposed notes on the product.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  Pagination token to get next set of posts eligible for notes.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  Max results to return.
+</ParamField>
+
+<ParamField path="post_selection" type="str" optional>
+  The selection of posts to return. Valid values are 'feed_size: [small|large|xl], feed_lang: [en|es|...|all]'. Default is 'feed_size: small, feed_lang: en'.
+</ParamField>
+
+<ResponseField name="SearchEligiblePostsResponse" type="Iterator">
+  Iterator that yields pages of posts eligible for community notes. Automatically handles pagination.
+</ResponseField>
+
+### delete
+
+Deletes a community note.
+
+```python
+response = client.community_notes.delete(
+    id="1234567890"
+)
+```
+
+<ParamField path="id" type="str" required>
+  The community note id to delete.
+</ParamField>
+
+<ResponseField name="DeleteResponse" type="object">
+  Response confirming the community note was deleted.
+</ResponseField>

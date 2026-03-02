@@ -1,0 +1,388 @@
+---
+title: 'Working with Direct Messages'
+description: 'Send and receive direct messages, manage conversations, and handle DM events'
+---
+
+## Overview
+
+The Direct Messages client enables you to send messages, create conversations, and retrieve DM history. All DM operations require OAuth 2.0 User Context or OAuth 1.0a authentication.
+
+## Creating Conversations
+
+<Steps>
+  <Step title="Initialize the client">
+    ```python
+    from xdk import Client
+
+    client = Client(
+        access_token="YOUR_ACCESS_TOKEN",
+        # OAuth 2.0 User Context required for DMs
+    )
+    ```
+  </Step>
+
+  <Step title="Create a new conversation">
+    ```python direct_messages/client.py:46-203
+    from xdk.direct_messages.models import CreateConversationRequest
+
+    # Start a new DM conversation
+    response = client.direct_messages.create_conversation(
+        body=CreateConversationRequest(
+            conversation_type="Group",  # or "OneToOne"
+            participant_ids=["123456789", "987654321"],
+            message={"text": "Hey everyone! Let's discuss the project."}
+        )
+    )
+
+    conversation_id = response.data.dm_conversation_id
+    print(f"Conversation created: {conversation_id}")
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Direct messaging requires OAuth 2.0 User Context or OAuth 1.0a authentication. Bearer tokens cannot be used.
+</Note>
+
+## Sending Messages
+
+### Send Message to Conversation
+
+Send a message to an existing conversation by its ID:
+
+```python direct_messages/client.py:206-368
+from xdk.direct_messages.models import CreateByConversationIdRequest
+
+# Send message to conversation
+response = client.direct_messages.create_by_conversation_id(
+    dm_conversation_id="123456-7890",
+    body=CreateByConversationIdRequest(
+        text="This is a message to the group!"
+    )
+)
+
+message_id = response.data.dm_event_id
+print(f"Message sent: {message_id}")
+```
+
+### Send Message to Specific User
+
+Send a one-to-one message to a specific participant:
+
+```python
+from xdk.direct_messages.models import CreateByParticipantIdRequest
+
+# Send DM to a specific user
+response = client.direct_messages.create_by_participant_id(
+    participant_id="123456789",  # Recipient's user ID
+    body=CreateByParticipantIdRequest(
+        text="Hi! This is a direct message."
+    )
+)
+
+print(f"Message sent: {response.data.dm_event_id}")
+```
+
+### Send Message with Attachments
+
+```python
+# Send message with media attachment
+response = client.direct_messages.create_by_conversation_id(
+    dm_conversation_id="123456-7890",
+    body=CreateByConversationIdRequest(
+        text="Check out this image!",
+        attachments={
+            "media_ids": ["1234567890123456789"]
+        }
+    )
+)
+```
+
+## Retrieving Messages
+
+### Get All DM Events
+
+Retrieve recent direct message events across all conversations:
+
+```python direct_messages/client.py:371-623
+# Get all DM events
+for page in client.direct_messages.get_events(
+    max_results=100,
+    dm_event_fields=["id", "text", "created_at", "sender_id"],
+    expansions=["sender_id", "attachments.media_keys"],
+    user_fields=["username", "profile_image_url"],
+    media_fields=["url", "preview_image_url"]
+):
+    for event in page.data:
+        print(f"{event.created_at}: {event.text}")
+```
+
+**Response Structure:**
+```python
+{
+  "data": [
+    {
+      "id": "1234567890",
+      "text": "Hello!",
+      "event_type": "MessageCreate",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "sender_id": "123456789"
+    }
+  ],
+  "includes": {
+    "users": [
+      {"id": "123456789", "username": "johndoe"}
+    ]
+  },
+  "meta": {
+    "result_count": 1,
+    "next_token": "abc123"
+  }
+}
+```
+
+### Get Messages from Specific Conversation
+
+Retrieve messages from a single conversation:
+
+```python direct_messages/client.py:626-883
+# Get messages from a conversation
+for page in client.direct_messages.get_events_by_conversation_id(
+    id="123456-7890",
+    max_results=100,
+    dm_event_fields=["id", "text", "created_at", "sender_id"],
+    expansions=["sender_id"],
+    user_fields=["username"]
+):
+    for event in page.data:
+        sender = next(
+            (u for u in page.includes.users if u.id == event.sender_id),
+            None
+        )
+        print(f"@{sender.username}: {event.text}")
+```
+
+### Get Messages with Specific User
+
+Retrieve one-to-one conversation history with a participant:
+
+```python direct_messages/client.py:886-1144
+# Get conversation with specific user
+for page in client.direct_messages.get_events_by_participant_id(
+    participant_id="123456789",
+    max_results=100,
+    dm_event_fields=["id", "text", "created_at", "sender_id"],
+    event_types=["MessageCreate"],  # Filter by event type
+    expansions=["sender_id", "attachments.media_keys"]
+):
+    for event in page.data:
+        print(f"{event.created_at}: {event.text}")
+```
+
+## Event Types
+
+Direct message events can be filtered by type:
+
+- `MessageCreate` - New message sent
+- `MessageDelete` - Message deleted
+- `ParticipantsJoin` - User joined conversation
+- `ParticipantsLeave` - User left conversation
+
+```python
+# Filter for specific event types
+for page in client.direct_messages.get_events(
+    event_types=["MessageCreate", "MessageDelete"],
+    max_results=50
+):
+    for event in page.data:
+        if event.event_type == "MessageCreate":
+            print(f"New message: {event.text}")
+        elif event.event_type == "MessageDelete":
+            print(f"Message deleted: {event.id}")
+```
+
+## Deleting Messages
+
+Delete a message you've sent:
+
+```python
+# Delete a DM event
+response = client.direct_messages.delete_events(
+    dm_event_id="1234567890"
+)
+
+if response.data.deleted:
+    print("Message deleted successfully")
+```
+
+<Note>
+  You can only delete messages that you sent. Attempting to delete another user's message will fail.
+</Note>
+
+## Pagination Best Practices
+
+<Steps>
+  <Step title="Automatic pagination">
+    Iterator methods handle pagination automatically:
+
+    ```python
+    # Automatically fetches all pages
+    all_messages = []
+    
+    for page in client.direct_messages.get_events(max_results=100):
+        all_messages.extend(page.data or [])
+    
+    print(f"Retrieved {len(all_messages)} messages")
+    ```
+  </Step>
+
+  <Step title="Manual pagination control">
+    Use `pagination_token` for manual control:
+
+    ```python
+    # Get first page
+    pages = client.direct_messages.get_events(max_results=50)
+    first_page = next(pages)
+    
+    # Get next page using token
+    if first_page.meta.next_token:
+        second_page = next(
+            client.direct_messages.get_events(
+                max_results=50,
+                pagination_token=first_page.meta.next_token
+            )
+        )
+    ```
+  </Step>
+
+  <Step title="Limit total results">
+    Stop pagination after a certain number of results:
+
+    ```python
+    message_count = 0
+    max_messages = 500
+    
+    for page in client.direct_messages.get_events(max_results=100):
+        for event in page.data:
+            process_message(event)
+            message_count += 1
+            
+            if message_count >= max_messages:
+                break
+        
+        if message_count >= max_messages:
+            break
+    ```
+  </Step>
+</Steps>
+
+## Available Fields
+
+### DM Event Fields
+- `id` - Unique event identifier
+- `text` - Message text content
+- `event_type` - Type of DM event
+- `created_at` - Timestamp
+- `sender_id` - User ID of sender
+- `dm_conversation_id` - Conversation ID
+- `attachments` - Media attachments
+- `referenced_tweets` - Attached tweets
+
+### Expansions
+- `sender_id` - Expand sender user object
+- `participant_ids` - Expand all participants
+- `attachments.media_keys` - Expand media objects
+- `referenced_tweets.id` - Expand attached tweets
+
+## Advanced: Building a DM Bot
+
+```python
+import time
+from datetime import datetime, timedelta
+
+class DMBot:
+    def __init__(self, client):
+        self.client = client
+        self.processed_ids = set()
+    
+    def process_new_messages(self):
+        """Check for new DMs and respond"""
+        for page in self.client.direct_messages.get_events(
+            max_results=100,
+            dm_event_fields=["id", "text", "sender_id", "created_at"],
+            event_types=["MessageCreate"]
+        ):
+            for event in page.data:
+                # Skip already processed messages
+                if event.id in self.processed_ids:
+                    continue
+                
+                # Skip messages older than 5 minutes
+                created = datetime.fromisoformat(
+                    event.created_at.replace('Z', '+00:00')
+                )
+                if datetime.now(created.tzinfo) - created > timedelta(minutes=5):
+                    continue
+                
+                # Process the message
+                self.handle_message(event)
+                self.processed_ids.add(event.id)
+    
+    def handle_message(self, event):
+        """Respond to a message"""
+        text = event.text.lower()
+        
+        if "help" in text:
+            self.send_response(
+                event.sender_id,
+                "I can help you with: info, status, help"
+            )
+        elif "status" in text:
+            self.send_response(
+                event.sender_id,
+                "All systems operational!"
+            )
+    
+    def send_response(self, user_id, message):
+        """Send a DM response"""
+        self.client.direct_messages.create_by_participant_id(
+            participant_id=user_id,
+            body={"text": message}
+        )
+
+# Use the bot
+client = Client(access_token="YOUR_TOKEN")
+bot = DMBot(client)
+
+# Poll for new messages every 60 seconds
+while True:
+    bot.process_new_messages()
+    time.sleep(60)
+```
+
+## Error Handling
+
+```python
+from requests.exceptions import HTTPError
+
+try:
+    response = client.direct_messages.create_by_participant_id(
+        participant_id="123456789",
+        body={"text": "Hello!"}
+    )
+    print("Message sent successfully")
+    
+except HTTPError as e:
+    if e.response.status_code == 403:
+        print("Cannot send DM (user has blocked DMs or doesn't follow you)")
+    elif e.response.status_code == 404:
+        print("User not found")
+    elif e.response.status_code == 429:
+        print("Rate limit exceeded - wait before sending more messages")
+    else:
+        print(f"Error: {e.response.text}")
+```
+
+<Tip>
+  Always respect DM limits: you can typically send messages to users who follow you, or have previously had a conversation with you.
+</Tip>

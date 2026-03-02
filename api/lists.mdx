@@ -1,0 +1,263 @@
+---
+title: 'Lists'
+description: 'Manage X Lists with the ListsClient'
+---
+
+## Overview
+
+The `ListsClient` provides methods to create, manage, and retrieve information about X Lists, including members, followers, and posts.
+
+## Initialization
+
+Access the ListsClient through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="YOUR_BEARER_TOKEN",
+    access_token="YOUR_ACCESS_TOKEN"
+)
+
+lists_client = client.lists
+```
+
+## Methods
+
+### create
+
+Creates a new List for the authenticated user.
+
+```python
+def create(
+    body: Optional[CreateRequest] = None
+) -> CreateResponse
+```
+
+<ParamField path="body" type="CreateRequest" optional>
+  Request body containing list details (name, description, private)
+</ParamField>
+
+**Returns:** `CreateResponse` - The created list data
+
+**Example:**
+
+```python
+from xdk.lists.models import CreateRequest
+
+response = client.lists.create(
+    body=CreateRequest(
+        name="My Favorite Developers",
+        description="A curated list of amazing developers",
+        private=False
+    )
+)
+
+print(f"List created: {response.data.id}")
+print(f"List name: {response.data.name}")
+```
+
+---
+
+### get_members
+
+Retrieves a list of Users who are members of a specific List by its ID. This method automatically handles pagination.
+
+```python
+def get_members(
+    id: Any,
+    max_results: int = None,
+    pagination_token: Any = None,
+    user_fields: List = None,
+    expansions: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetMembersResponse]
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the List
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (default: 100, max: 100)
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  User fields to display (e.g., ['id', 'name', 'username', 'created_at', 'verified'])
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand (e.g., ['pinned_tweet_id'])
+</ParamField>
+
+**Returns:** `Iterator[GetMembersResponse]` - Yields pages of list members
+
+**Example:**
+
+```python
+list_id = "123456789"
+
+# Get all members with pagination
+for page in client.lists.get_members(
+    id=list_id,
+    max_results=100,
+    user_fields=['id', 'name', 'username', 'verified']
+):
+    for user in page.data:
+        verified = "✓" if user.verified else ""
+        print(f"@{user.username} {verified}")
+```
+
+---
+
+### add_member
+
+Adds a User to a specific List by its ID.
+
+```python
+def add_member(
+    id: Any,
+    body: Optional[AddMemberRequest] = None
+) -> AddMemberResponse
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the List to add a member to
+</ParamField>
+
+<ParamField path="body" type="AddMemberRequest" optional>
+  Request body containing the user_id to add
+</ParamField>
+
+**Returns:** `AddMemberResponse` - Confirmation of the add operation
+
+**Example:**
+
+```python
+from xdk.lists.models import AddMemberRequest
+
+response = client.lists.add_member(
+    id="list_123",
+    body=AddMemberRequest(user_id="user_456")
+)
+
+if response.data.is_member:
+    print("User successfully added to list")
+```
+
+---
+
+### get_posts
+
+Retrieves a list of Posts associated with a specific List by its ID. This method automatically handles pagination.
+
+```python
+def get_posts(
+    id: Any,
+    max_results: int = None,
+    pagination_token: Any = None,
+    tweet_fields: List = None,
+    expansions: List = None,
+    media_fields: List = None,
+    poll_fields: List = None,
+    user_fields: List = None,
+    place_fields: List = None
+) -> Iterator[GetPostsResponse]
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the List
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page (default: 100, max: 100)
+</ParamField>
+
+<ParamField path="tweet_fields" type="List[str]" optional>
+  Tweet fields to display (e.g., ['id', 'text', 'created_at', 'public_metrics'])
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand (e.g., ['author_id', 'attachments.media_keys'])
+</ParamField>
+
+**Returns:** `Iterator[GetPostsResponse]` - Yields pages of posts from the list
+
+**Example:**
+
+```python
+# Get recent posts from a list
+for page in client.lists.get_posts(
+    id="list_123",
+    max_results=50,
+    tweet_fields=['id', 'text', 'created_at', 'public_metrics'],
+    expansions=['author_id'],
+    user_fields=['username']
+):
+    for tweet in page.data:
+        print(f"Tweet: {tweet.text}")
+        print(f"Likes: {tweet.public_metrics.like_count}")
+```
+
+---
+
+### get_followers
+
+Retrieves a list of Users who follow a specific List by its ID. This method automatically handles pagination.
+
+```python
+def get_followers(
+    id: Any,
+    max_results: int = None,
+    pagination_token: Any = None,
+    user_fields: List = None,
+    expansions: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetFollowersResponse]
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the List
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page
+</ParamField>
+
+<ParamField path="user_fields" type="List[str]" optional>
+  User fields to display
+</ParamField>
+
+**Returns:** `Iterator[GetFollowersResponse]` - Yields pages of list followers
+
+**Example:**
+
+```python
+# Get all followers of a list
+follower_count = 0
+for page in client.lists.get_followers(
+    id="list_123",
+    max_results=100,
+    user_fields=['username', 'name']
+):
+    for user in page.data:
+        follower_count += 1
+        print(f"{user.name} (@{user.username})")
+
+print(f"Total followers: {follower_count}")
+```
+
+## Authentication
+
+ListsClient methods support multiple authentication methods:
+
+- **Bearer Token** (for read operations)
+- **OAuth 2.0 User Token** (for user-specific operations)
+- **OAuth 1.0a User Token** (for user-specific operations)
+
+Write operations (create, add_member) require user context authentication.
+
+## See Also
+
+- [Authentication Guide](/auth/overview)
+- [X API Lists Documentation](https://developer.x.com/en/docs/x-api/lists/introduction)

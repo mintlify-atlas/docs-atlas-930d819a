@@ -1,0 +1,256 @@
+---
+title: 'Direct Messages'
+description: 'Manage direct message conversations and events with the DirectMessagesClient'
+---
+
+## Overview
+
+The `DirectMessagesClient` provides methods to create and manage direct message conversations, send messages, and retrieve message events from the X API.
+
+## Initialization
+
+Access the DirectMessagesClient through the main XDK client:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="YOUR_BEARER_TOKEN",
+    access_token="YOUR_ACCESS_TOKEN"
+)
+
+dm_client = client.direct_messages
+```
+
+## Methods
+
+### create_conversation
+
+Initiates a new direct message conversation with specified participants.
+
+```python
+def create_conversation(
+    body: Optional[CreateConversationRequest] = None
+) -> Dict[str, Any]
+```
+
+<ParamField path="body" type="CreateConversationRequest" optional>
+  Request body containing conversation details
+</ParamField>
+
+**Returns:** `CreateConversationResponse` - The created conversation data
+
+**Example:**
+
+```python
+from xdk.direct_messages.models import CreateConversationRequest
+
+response = client.direct_messages.create_conversation(
+    body=CreateConversationRequest(
+        conversation_type="Group",
+        participant_ids=["user_id_1", "user_id_2"]
+    )
+)
+
+print(f"Conversation ID: {response.data.dm_conversation_id}")
+```
+
+---
+
+### create_by_conversation_id
+
+Sends a new direct message to a specific conversation by its ID.
+
+```python
+def create_by_conversation_id(
+    dm_conversation_id: str,
+    body: Optional[CreateByConversationIdRequest] = None
+) -> Dict[str, Any]
+```
+
+<ParamField path="dm_conversation_id" type="str" required>
+  The DM Conversation ID to send the message to
+</ParamField>
+
+<ParamField path="body" type="CreateByConversationIdRequest" optional>
+  Request body containing message content and attachments
+</ParamField>
+
+**Returns:** `CreateByConversationIdResponse` - The created message data
+
+**Example:**
+
+```python
+from xdk.direct_messages.models import CreateByConversationIdRequest
+
+response = client.direct_messages.create_by_conversation_id(
+    dm_conversation_id="123456789",
+    body=CreateByConversationIdRequest(
+        text="Hello from XDK!",
+        attachments=[{"media_id": "media_123"}]
+    )
+)
+
+print(f"Message ID: {response.data.dm_event_id}")
+```
+
+---
+
+### get_events
+
+Retrieves a list of recent direct message events across all conversations. This method automatically handles pagination.
+
+```python
+def get_events(
+    max_results: int = None,
+    pagination_token: Any = None,
+    event_types: List = None,
+    dm_event_fields: List = None,
+    expansions: List = None,
+    media_fields: List = None,
+    user_fields: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetEventsResponse]
+```
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  Token to get a specific page of results
+</ParamField>
+
+<ParamField path="event_types" type="List[str]" optional>
+  The set of event types to include in the results (e.g., ['MessageCreate', 'ParticipantsJoin'])
+</ParamField>
+
+<ParamField path="dm_event_fields" type="List[str]" optional>
+  DM event fields to display (e.g., ['id', 'text', 'event_type', 'created_at'])
+</ParamField>
+
+<ParamField path="expansions" type="List[str]" optional>
+  Fields to expand (e.g., ['attachments.media_keys', 'referenced_tweets.id'])
+</ParamField>
+
+**Returns:** `Iterator[GetEventsResponse]` - Yields pages of DM events
+
+**Example:**
+
+```python
+# Get all DM events with pagination
+for page in client.direct_messages.get_events(
+    max_results=50,
+    dm_event_fields=['id', 'text', 'event_type', 'created_at'],
+    expansions=['sender_id', 'attachments.media_keys']
+):
+    for event in page.data:
+        print(f"{event.event_type}: {event.text}")
+
+# Get just the first page
+first_page = next(client.direct_messages.get_events(max_results=10))
+print(f"Total events: {len(first_page.data)}")
+```
+
+---
+
+### get_events_by_conversation_id
+
+Retrieves direct message events for a specific conversation. This method automatically handles pagination.
+
+```python
+def get_events_by_conversation_id(
+    id: Any,
+    max_results: int = None,
+    pagination_token: Any = None,
+    event_types: List = None,
+    dm_event_fields: List = None,
+    expansions: List = None,
+    media_fields: List = None,
+    user_fields: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetEventsByConversationIdResponse]
+```
+
+<ParamField path="id" type="str" required>
+  The DM conversation ID
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page
+</ParamField>
+
+<ParamField path="dm_event_fields" type="List[str]" optional>
+  DM event fields to display
+</ParamField>
+
+**Returns:** `Iterator[GetEventsByConversationIdResponse]` - Yields pages of conversation events
+
+**Example:**
+
+```python
+conversation_id = "123456789"
+
+# Retrieve all messages in a conversation
+for page in client.direct_messages.get_events_by_conversation_id(
+    id=conversation_id,
+    max_results=100,
+    dm_event_fields=['id', 'text', 'created_at', 'sender_id']
+):
+    for message in page.data:
+        print(f"[{message.created_at}] {message.sender_id}: {message.text}")
+```
+
+---
+
+### get_events_by_participant_id
+
+Retrieves direct message events for a one-to-one conversation with a specific participant.
+
+```python
+def get_events_by_participant_id(
+    participant_id: Any,
+    max_results: int = None,
+    pagination_token: Any = None,
+    event_types: List = None,
+    dm_event_fields: List = None,
+    expansions: List = None,
+    media_fields: List = None,
+    user_fields: List = None,
+    tweet_fields: List = None
+) -> Iterator[GetEventsByParticipantIdResponse]
+```
+
+<ParamField path="participant_id" type="str" required>
+  The ID of the participant user for the one-to-one DM conversation
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results per page
+</ParamField>
+
+**Returns:** `Iterator[GetEventsByParticipantIdResponse]` - Yields pages of conversation events
+
+**Example:**
+
+```python
+# Get DM history with a specific user
+for page in client.direct_messages.get_events_by_participant_id(
+    participant_id="user_123",
+    max_results=50,
+    dm_event_fields=['id', 'text', 'created_at']
+):
+    for message in page.data:
+        print(f"{message.text}")
+```
+
+## Authentication
+
+All DirectMessagesClient methods require user context authentication:
+- **OAuth 2.0 User Token** (recommended for user operations)
+- **OAuth 1.0a User Token**
+
+## See Also
+
+- [Authentication Guide](/auth/overview)
+- [X API Direct Messages Documentation](https://developer.x.com/en/docs/x-api/direct-messages/introduction)

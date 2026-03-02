@@ -1,0 +1,85 @@
+---
+title: 'Webhooks'
+description: 'Client for webhooks operations'
+---
+
+## WebhooksClient
+
+The `WebhooksClient` provides methods for managing webhook configurations and stream links.
+
+### create
+
+Creates a new webhook configuration.
+
+```python
+from xdk.webhooks.models import CreateRequest
+
+response = client.webhooks.create(
+    body=CreateRequest(
+        url="https://example.com/webhook",
+        description="My webhook endpoint"
+    )
+)
+```
+
+<ParamField path="body" type="CreateRequest" optional>
+  Request body containing webhook configuration details.
+</ParamField>
+
+<ResponseField name="CreateResponse" type="object">
+  Response containing the created webhook configuration.
+</ResponseField>
+
+### get
+
+Get a list of webhook configs associated with a client app.
+
+```python
+response = client.webhooks.get(
+    webhook_config_fields=["id", "url", "created_at"]
+)
+```
+
+<ParamField path="webhook_config_fields" type="List[str]" optional>
+  A comma separated list of WebhookConfig fields to display.
+</ParamField>
+
+<ResponseField name="GetResponse" type="object">
+  Response containing webhook configurations.
+</ResponseField>
+
+### validate
+
+Triggers a CRC check for a given webhook.
+
+```python
+response = client.webhooks.validate(
+    webhook_id="1234567890"
+)
+```
+
+<ParamField path="webhook_id" type="str" required>
+  The ID of the webhook to check.
+</ParamField>
+
+<ResponseField name="ValidateResponse" type="object">
+  Response containing validation results.
+</ResponseField>
+
+### delete
+
+Deletes an existing webhook configuration.
+
+```python
+response = client.webhooks.delete(
+    webhook_id="1234567890"
+)
+```
+
+<ParamField path="webhook_id" type="str" required>
+  The ID of the webhook to delete.
+</ParamField>
+
+<ResponseField name="DeleteResponse" type="object">
+  Response confirming the webhook was deleted.
+</ResponseField>

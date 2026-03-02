@@ -1,0 +1,125 @@
+---
+title: "Introduction to XDK Python"
+description: "A powerful Python SDK for the X API with full OAuth support and type safety"
+---
+
+## Welcome to XDK Python
+
+XDK Python is an official Python SDK for the X API (v2) that provides a simple, intuitive interface for building applications on X. Built with type safety and modern Python practices, XDK makes it easy to create posts, manage users, search content, and more.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Get started by installing XDK with pip or uv
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Post your first tweet in minutes with our guide
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/client">
+    Explore the complete API documentation
+  </Card>
+  
+  <Card title="Authentication" icon="key" href="/auth/overview">
+    Learn about OAuth1, OAuth2 PKCE, and bearer tokens
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Multiple Authentication Methods" icon="shield-check">
+    XDK supports three authentication methods to fit your use case:
+    
+    - **OAuth 1.0a**: Traditional OAuth flow with consumer keys and access tokens
+    - **OAuth 2.0 PKCE**: Modern authorization code flow with automatic token refresh
+    - **Bearer Token**: Simple app-only authentication for read operations
+    
+    The SDK automatically handles authentication headers and token management.
+  </Accordion>
+  
+  <Accordion title="Full X API v2 Coverage" icon="globe">
+    Access all X API v2 endpoints organized by resource:
+    
+    - Posts (tweets) - create, read, search, and manage
+    - Users - profiles, followers, and relationships
+    - Direct Messages - send and receive DMs
+    - Lists, Spaces, Communities, and more
+    - Streaming - real-time filtered stream
+    - Media - upload images and videos
+  </Accordion>
+  
+  <Accordion title="Type Safety with Pydantic" icon="check-double">
+    All request and response models use Pydantic for:
+    
+    - Automatic validation of API requests
+    - Type hints for better IDE support
+    - Clear error messages for invalid data
+    - Serialization and deserialization
+  </Accordion>
+  
+  <Accordion title="Automatic Pagination" icon="arrows-repeat">
+    Many endpoints return iterators that automatically handle pagination:
+    
+    ```python
+    from xdk import Client
+    
+    client = Client(bearer_token="your_token")
+    
+    # Automatically iterates through all pages
+    for page in client.posts.search_recent(query="python"):
+        for tweet in page.data:
+            print(tweet)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Quick Example
+
+Here's a simple example to get you started:
+
+```python
+from xdk import Client
+from xdk.posts.models import CreateRequest
+
+# Initialize with OAuth2 access token
+client = Client(access_token="your_access_token")
+
+# Create a post
+request = CreateRequest(text="Hello from XDK Python!")
+response = client.posts.create(body=request)
+
+print(f"Posted! Tweet ID: {response.data.id}")
+```
+
+<Note>
+The SDK version is **0.9.0**. This is a beta release - some features may change before the 1.0 stable release.
+</Note>
+
+## Next Steps
+
+<Steps>
+  <Step title="Install the SDK">
+    Follow the [installation guide](/installation) to add XDK to your project.
+  </Step>
+  
+  <Step title="Set up authentication">
+    Choose your authentication method and configure credentials.
+  </Step>
+  
+  <Step title="Build your first integration">
+    Follow the [quickstart guide](/quickstart) to post your first tweet.
+  </Step>
+  
+  <Step title="Explore the API">
+    Check out the [API reference](/api/client) for all available endpoints.
+  </Step>
+</Steps>
+
+## Need Help?
+
+For more detailed information, see:
+
+- [Official X API Documentation](https://docs.x.com/xdks/python/overview)
+- [Authentication Guide](/auth/overview)
+- [API Reference](/api/client)

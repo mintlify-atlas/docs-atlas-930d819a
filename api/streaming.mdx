@@ -1,0 +1,344 @@
+---
+title: "Streaming"
+description: "Robust streaming utilities with automatic reconnection and error handling"
+---
+
+The streaming module provides utilities for consuming streaming endpoints with automatic reconnection, exponential backoff, and comprehensive error handling.
+
+## StreamConfig
+
+Configuration dataclass for streaming connections with retry behavior.
+
+```python
+@dataclass
+class StreamConfig:
+    max_retries: int = 10
+    initial_backoff: float = 1.0
+    max_backoff: float = 64.0
+    backoff_multiplier: float = 2.0
+    jitter: bool = True
+    timeout: Optional[float] = None
+    chunk_size: int = 1024
+    on_connect: Optional[Callable[[], None]] = None
+    on_disconnect: Optional[Callable[[Optional[Exception]], None]] = None
+    on_reconnect: Optional[Callable[[int, float], None]] = None
+    on_error: Optional[Callable[[StreamError], None]] = None
+```
+
+### Attributes
+
+<ParamField path="max_retries" type="int" default="10">
+  Maximum number of reconnection attempts. Set to -1 for infinite retries.
+</ParamField>
+
+<ParamField path="initial_backoff" type="float" default="1.0">
+  Initial backoff delay in seconds
+</ParamField>
+
+<ParamField path="max_backoff" type="float" default="64.0">
+  Maximum backoff delay in seconds
+</ParamField>
+
+<ParamField path="backoff_multiplier" type="float" default="2.0">
+  Multiplier for exponential backoff
+</ParamField>
+
+<ParamField path="jitter" type="bool" default="True">
+  Whether to add random jitter to backoff times
+</ParamField>
+
+<ParamField path="timeout" type="float" default="None">
+  Request timeout in seconds. None for no timeout.
+</ParamField>
+
+<ParamField path="chunk_size" type="int" default="1024">
+  Size of chunks to read from stream
+</ParamField>
+
+<ParamField path="on_connect" type="Callable" default="None">
+  Optional callback when connection is established
+</ParamField>
+
+<ParamField path="on_disconnect" type="Callable" default="None">
+  Optional callback when connection is lost
+</ParamField>
+
+<ParamField path="on_reconnect" type="Callable" default="None">
+  Optional callback when reconnection is attempted. Receives `(attempt: int, delay: float)`
+</ParamField>
+
+<ParamField path="on_error" type="Callable" default="None">
+  Optional callback when an error occurs
+</ParamField>
+
+### Example Usage
+
+```python
+from xdk.streaming import StreamConfig
+
+def on_connect():
+    print("Connected to stream")
+
+def on_disconnect(error):
+    print(f"Disconnected: {error}")
+
+def on_reconnect(attempt, delay):
+    print(f"Reconnecting (attempt {attempt}) in {delay:.2f}s")
+
+def on_error(error):
+    print(f"Error: {error.error_type} - {error}")
+
+config = StreamConfig(
+    max_retries=20,
+    initial_backoff=2.0,
+    max_backoff=120.0,
+    on_connect=on_connect,
+    on_disconnect=on_disconnect,
+    on_reconnect=on_reconnect,
+    on_error=on_error
+)
+```
+
+---
+
+## StreamState
+
+Internal state dataclass for tracking streaming connection status.
+
+```python
+@dataclass
+class StreamState:
+    retry_count: int = 0
+    current_backoff: float = 1.0
+    is_connected: bool = False
+    total_items_received: int = 0
+    last_error: Optional[StreamError] = None
+```
+
+### Attributes
+
+<ParamField path="retry_count" type="int" default="0">
+  Number of retry attempts made
+</ParamField>
+
+<ParamField path="current_backoff" type="float" default="1.0">
+  Current backoff delay in seconds
+</ParamField>
+
+<ParamField path="is_connected" type="bool" default="False">
+  Whether currently connected to the stream
+</ParamField>
+
+<ParamField path="total_items_received" type="int" default="0">
+  Total number of items received from the stream
+</ParamField>
+
+<ParamField path="last_error" type="StreamError" default="None">
+  Last error encountered, if any
+</ParamField>
+
+---
+
+## StreamError
+
+Exception class for streaming errors with classification and retry logic.
+
+```python
+class StreamError(Exception):
+    def __init__(
+        self,
+        message: str,
+        error_type: StreamErrorType,
+        original_exception: Optional[Exception] = None,
+        status_code: Optional[int] = None,
+        response_body: Optional[str] = None,
+    )
+```
+
+### Attributes
+
+<ParamField path="message" type="str" required>
+  Error message describing what went wrong
+</ParamField>
+
+<ParamField path="error_type" type="StreamErrorType" required>
+  Classification of the error for retry decisions
+</ParamField>
+
+<ParamField path="original_exception" type="Exception" default="None">
+  The original exception that was wrapped, if any
+</ParamField>
+
+<ParamField path="status_code" type="int" default="None">
+  HTTP status code if applicable
+</ParamField>
+
+<ParamField path="response_body" type="str" default="None">
+  Response body from the server if available
+</ParamField>
+
+### Properties
+
+#### is_retryable
+
+Check if this error type should be retried.
+
+```python
+@property
+def is_retryable(self) -> bool
+```
+
+**Returns:** `True` if the error is retryable, `False` otherwise
+
+### Example Usage
+
+```python
+from xdk.streaming import StreamError, StreamErrorType
+
+try:
+    # streaming code
+    pass
+except StreamError as e:
+    print(f"Error type: {e.error_type}")
+    print(f"Is retryable: {e.is_retryable}")
+    print(f"Status code: {e.status_code}")
+    if e.original_exception:
+        print(f"Original: {e.original_exception}")
+```
+
+---
+
+## StreamErrorType
+
+Enumeration classifying streaming errors for retry decisions.
+
+```python
+class StreamErrorType(Enum):
+    # Retryable errors - connection issues that may resolve
+    CONNECTION_ERROR = "connection_error"
+    TIMEOUT = "timeout"
+    SERVER_ERROR = "server_error"  # 5xx errors
+    RATE_LIMITED = "rate_limited"  # 429 errors
+    STREAM_INTERRUPTED = "stream_interrupted"
+
+    # Non-retryable errors - client issues that won't resolve with retry
+    AUTHENTICATION_ERROR = "authentication_error"  # 401/403
+    CLIENT_ERROR = "client_error"  # Other 4xx errors
+    FATAL_ERROR = "fatal_error"
+```
+
+### Retryable Error Types
+
+<ParamField path="CONNECTION_ERROR" type="str">
+  Connection issues (network errors, connection reset, etc.)
+</ParamField>
+
+<ParamField path="TIMEOUT" type="str">
+  Request or read timeout
+</ParamField>
+
+<ParamField path="SERVER_ERROR" type="str">
+  Server errors (5xx HTTP status codes)
+</ParamField>
+
+<ParamField path="RATE_LIMITED" type="str">
+  Rate limit errors (429 HTTP status code)
+</ParamField>
+
+<ParamField path="STREAM_INTERRUPTED" type="str">
+  Stream was interrupted mid-transfer
+</ParamField>
+
+### Non-Retryable Error Types
+
+<ParamField path="AUTHENTICATION_ERROR" type="str">
+  Authentication failures (401/403 HTTP status codes)
+</ParamField>
+
+<ParamField path="CLIENT_ERROR" type="str">
+  Other client errors (4xx HTTP status codes)
+</ParamField>
+
+<ParamField path="FATAL_ERROR" type="str">
+  Fatal errors that cannot be recovered
+</ParamField>
+
+---
+
+## stream_with_retry()
+
+Stream data from an endpoint with automatic reconnection and exponential backoff.
+
+```python
+def stream_with_retry(
+    session: requests.Session,
+    method: str,
+    url: str,
+    config: Optional[StreamConfig] = None,
+    params: Optional[Dict[str, Any]] = None,
+    headers: Optional[Dict[str, str]] = None,
+    json_data: Optional[Dict[str, Any]] = None,
+    response_model: Optional[Type[T]] = None,
+) -> Generator[Union[T, Dict[str, Any]], None, None]
+```
+
+<ParamField path="session" type="requests.Session" required>
+  The requests Session to use for HTTP calls
+</ParamField>
+
+<ParamField path="method" type="str" required>
+  HTTP method (typically "get")
+</ParamField>
+
+<ParamField path="url" type="str" required>
+  The full URL to stream from
+</ParamField>
+
+<ParamField path="config" type="StreamConfig" default="None">
+  StreamConfig with retry and callback settings
+</ParamField>
+
+<ParamField path="params" type="Dict[str, Any]" default="None">
+  Query parameters for the request
+</ParamField>
+
+<ParamField path="headers" type="Dict[str, str]" default="None">
+  HTTP headers for the request
+</ParamField>
+
+<ParamField path="json_data" type="Dict[str, Any]" default="None">
+  JSON body data for the request
+</ParamField>
+
+<ParamField path="response_model" type="Type[T]" default="None">
+  Optional Pydantic model class to validate responses
+</ParamField>
+
+**Yields:** Parsed JSON objects from the stream, optionally validated as Pydantic models
+
+**Raises:**
+- `StreamError` - When a non-retryable error occurs or max retries exceeded
+
+### Example Usage
+
+```python
+import requests
+from xdk.streaming import stream_with_retry, StreamConfig
+
+session = requests.Session()
+session.headers["Authorization"] = "Bearer your_token"
+
+config = StreamConfig(
+    max_retries=20,
+    initial_backoff=2.0,
+    on_connect=lambda: print("Connected")
+)
+
+for item in stream_with_retry(
+    session,
+    "get",
+    "https://api.x.com/2/tweets/sample/stream",
+    config=config
+):
+    print(item)
+```

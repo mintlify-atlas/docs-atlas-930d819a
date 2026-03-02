@@ -1,0 +1,324 @@
+---
+title: 'Working with Posts'
+description: 'Learn how to create, search, and delete posts using the XDK Python SDK'
+---
+
+## Overview
+
+The Posts client provides comprehensive methods for creating, retrieving, searching, and managing posts on X. This guide covers common workflows and best practices.
+
+## Creating Posts
+
+<Steps>
+  <Step title="Initialize the client">
+    First, set up your XDK client with authentication:
+
+    ```python
+    from xdk import Client
+
+    client = Client(
+        bearer_token="YOUR_BEARER_TOKEN",
+        # Or use OAuth 2.0
+        access_token="YOUR_ACCESS_TOKEN"
+    )
+    ```
+  </Step>
+
+  <Step title="Create a simple post">
+    Use the `create()` method to post text content:
+
+    ```python posts/client.py:476-631
+    from xdk.posts.models import CreateRequest
+
+    # Create a simple text post
+    request = CreateRequest(text="Hello from XDK Python!")
+    response = client.posts.create(body=request)
+
+    print(f"Post created with ID: {response.data.id}")
+    ```
+
+    **Response Structure:**
+    ```python
+    {
+      "data": {
+        "id": "1234567890",
+        "text": "Hello from XDK Python!"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Create post with media">
+    Attach media to your post:
+
+    ```python
+    from xdk.posts.models import CreateRequest
+
+    request = CreateRequest(
+        text="Check out this image!",
+        media={
+            "media_ids": ["1234567890123456789"]
+        }
+    )
+    response = client.posts.create(body=request)
+    ```
+  </Step>
+
+  <Step title="Create a reply">
+    Reply to an existing post:
+
+    ```python
+    request = CreateRequest(
+        text="Great post!",
+        reply={
+            "in_reply_to_tweet_id": "1234567890"
+        }
+    )
+    response = client.posts.create(body=request)
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Creating posts requires OAuth 2.0 User Context or OAuth 1.0a authentication. Bearer tokens cannot be used for write operations.
+</Note>
+
+## Searching Posts
+
+### Search Recent Posts (Last 7 Days)
+
+Search posts from the last 7 days using the `search_recent()` method:
+
+```python
+# Search for posts mentioning "python"
+for page in client.posts.search_recent(
+    query="python",
+    max_results=100,
+    tweet_fields=["created_at", "author_id", "public_metrics"]
+):
+    for tweet in page.data:
+        print(f"{tweet.author_id}: {tweet.text}")
+```
+
+<Tip>
+  The SDK automatically handles pagination. The method returns an iterator that yields one page at a time.
+</Tip>
+
+### Search Full Archive
+
+For full historical search, use `search_all()` (requires Academic Research or Enterprise access):
+
+```python posts/client.py:967-1090
+# Search all posts matching a query
+for page in client.posts.search_all(
+    query="from:xdevelopers",
+    start_time="2024-01-01T00:00:00Z",
+    end_time="2024-12-31T23:59:59Z",
+    max_results=100,
+    tweet_fields=["created_at", "public_metrics", "entities"],
+    expansions=["author_id", "attachments.media_keys"]
+):
+    for tweet in page.data:
+        print(f"{tweet.text[:50]}...")
+```
+
+**Query Operators:**
+- `from:username` - Posts from a specific user
+- `to:username` - Replies to a user
+- `#hashtag` - Posts with a hashtag
+- `"exact phrase"` - Exact phrase match
+- `-word` - Exclude a word
+- `lang:en` - Filter by language
+
+### Advanced Search with Filters
+
+```python
+# Complex search query
+query = 'python (tutorial OR guide) -sponsored lang:en has:images'
+
+for page in client.posts.search_recent(
+    query=query,
+    max_results=10,
+    tweet_fields=["created_at", "public_metrics", "author_id"],
+    expansions=["author_id", "attachments.media_keys"],
+    media_fields=["url", "preview_image_url"],
+    user_fields=["username", "verified"]
+):
+    # Process results with full expansions
+    tweets = page.data or []
+    users = {u.id: u for u in (page.includes.users or [])}
+    
+    for tweet in tweets:
+        author = users.get(tweet.author_id)
+        print(f"@{author.username}: {tweet.text}")
+        print(f"Likes: {tweet.public_metrics.like_count}")
+```
+
+## Retrieving Posts
+
+### Get Post by ID
+
+Retrieve a single post with expanded data:
+
+```python posts/client.py:634-816
+response = client.posts.get_by_id(
+    id="1234567890",
+    tweet_fields=["created_at", "public_metrics", "entities"],
+    expansions=["author_id", "referenced_tweets.id"],
+    user_fields=["username", "profile_image_url"]
+)
+
+tweet = response.data
+print(f"Text: {tweet.text}")
+print(f"Created: {tweet.created_at}")
+print(f"Likes: {tweet.public_metrics.like_count}")
+```
+
+### Get Multiple Posts
+
+Retrieve up to 100 posts in a single request:
+
+```python posts/client.py:290-473
+response = client.posts.get_by_ids(
+    ids=["1234567890", "0987654321", "1122334455"],
+    tweet_fields=["created_at", "author_id", "public_metrics"],
+    expansions=["author_id"],
+    user_fields=["username", "verified"]
+)
+
+for tweet in response.data:
+    print(f"{tweet.id}: {tweet.text}")
+```
+
+## Deleting Posts
+
+Delete a post that you own:
+
+```python posts/client.py:819-964
+# Delete a post
+response = client.posts.delete(id="1234567890")
+
+if response.data.deleted:
+    print("Post successfully deleted")
+else:
+    print("Failed to delete post")
+```
+
+<Note>
+  You can only delete posts that belong to the authenticated user. Attempting to delete another user's post will result in an error.
+</Note>
+
+## Getting Post Counts
+
+Get aggregated counts of posts matching a search query:
+
+```python posts/client.py:53-288
+# Get post counts for a query
+for page in client.posts.get_counts_recent(
+    query="python programming",
+    granularity="day",  # Options: day, hour, minute
+    start_time="2024-01-01T00:00:00Z",
+    end_time="2024-01-31T23:59:59Z"
+):
+    for count in page.data:
+        print(f"{count.start}: {count.tweet_count} posts")
+    
+    print(f"Total: {page.meta.total_tweet_count}")
+```
+
+## Pagination Best Practices
+
+<Steps>
+  <Step title="Automatic pagination">
+    Methods that return iterators automatically handle pagination:
+
+    ```python
+    # Automatically paginates through all results
+    for page in client.posts.search_recent(query="python", max_results=100):
+        for tweet in page.data:
+            process_tweet(tweet)
+    ```
+  </Step>
+
+  <Step title="Manual pagination control">
+    To get just the first page or control pagination manually:
+
+    ```python
+    # Get first page only
+    pages = client.posts.search_recent(query="python", max_results=100)
+    first_page = next(pages)
+    
+    # Use pagination token for next page
+    if first_page.meta.next_token:
+        second_page = next(client.posts.search_recent(
+            query="python",
+            max_results=100,
+            pagination_token=first_page.meta.next_token
+        ))
+    ```
+  </Step>
+
+  <Step title="Handle rate limits">
+    Add delays when processing large result sets:
+
+    ```python
+    import time
+
+    for page in client.posts.search_recent(query="python"):
+        for tweet in page.data:
+            process_tweet(tweet)
+        
+        # Small delay to avoid rate limits
+        time.sleep(0.1)
+    ```
+  </Step>
+</Steps>
+
+## Available Fields
+
+### Tweet Fields
+- `id` - Unique identifier
+- `text` - Post content
+- `created_at` - Timestamp
+- `author_id` - User ID of author
+- `public_metrics` - Likes, retweets, replies, quotes
+- `entities` - URLs, hashtags, mentions
+- `conversation_id` - Thread identifier
+- `in_reply_to_user_id` - Reply target
+- `referenced_tweets` - Quote/reply/retweet info
+- `attachments` - Media attachments
+
+### Expansions
+- `author_id` - Expand author user object
+- `referenced_tweets.id` - Expand quoted/replied tweets
+- `attachments.media_keys` - Expand media objects
+- `attachments.poll_ids` - Expand poll objects
+- `entities.mentions.username` - Expand mentioned users
+- `geo.place_id` - Expand place objects
+
+## Error Handling
+
+```python
+from requests.exceptions import HTTPError
+
+try:
+    response = client.posts.create(
+        body=CreateRequest(text="Test post")
+    )
+    print(f"Created post {response.data.id}")
+    
+except HTTPError as e:
+    if e.response.status_code == 401:
+        print("Authentication failed")
+    elif e.response.status_code == 429:
+        print("Rate limit exceeded")
+    else:
+        print(f"Error: {e.response.text}")
+        
+except ValueError as e:
+    print(f"Invalid request: {e}")
+```
+
+<Tip>
+  Always include error handling in production code to gracefully handle API errors and rate limits.
+</Tip>

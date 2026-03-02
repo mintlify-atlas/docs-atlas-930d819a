@@ -1,0 +1,288 @@
+---
+title: Pagination
+description: Efficient pagination handling with the Cursor class for iterating through large result sets
+---
+
+## Overview
+
+The XDK provides a powerful `Cursor` class for handling paginated API responses. The Cursor enables elegant iteration over large result sets using `.pages()` and `.items()` methods with automatic pagination token management.
+
+## Cursor Class
+
+The Cursor wraps any paginatable API method and provides two iteration modes:
+
+- **`.pages()`** - Iterate over full page responses
+- **`.items()`** - Iterate over individual items across pages
+
+### Signature
+
+```python
+class Cursor(Generic[ResponseType]):
+    def __init__(
+        self, 
+        method: PaginatableMethod[ResponseType], 
+        *args: Any, 
+        **kwargs: Any
+    )
+    
+    def items(self, limit: Optional[int] = None) -> Iterator[Any]
+    
+    def pages(self, limit: Optional[int] = None) -> Iterator[ResponseType]
+```
+
+## Creating a Cursor
+
+You can create a Cursor using either the class constructor or the `cursor()` factory function:
+
+### Using the Constructor
+
+```python
+from xdk import Client, Cursor
+
+client = Client(bearer_token="your_token")
+
+# Cursor for user's followers
+followers_cursor = Cursor(
+    client.users.get_users_followers,
+    "user_id",
+    max_results=100
+)
+```
+
+### Using the Factory Function
+
+```python
+from xdk import cursor
+
+# Better type inference
+followers_cursor = cursor(
+    client.users.get_users_followers,
+    "user_id",
+    max_results=100
+)
+```
+
+<Note>
+The `cursor()` factory function is recommended as it provides better type inference for the response type.
+</Note>
+
+## Iterating Over Pages
+
+Use `.pages()` to iterate over complete API responses:
+
+```python
+from xdk import cursor
+
+client = Client(bearer_token="your_token")
+
+# Create cursor for post search
+search_cursor = cursor(
+    client.posts.search_posts_recent,
+    "python",
+    max_results=50
+)
+
+# Iterate over pages (up to 5 pages)
+for page in search_cursor.pages(limit=5):
+    print(f"Got {len(page.data)} posts")
+    for post in page.data:
+        print(f"- {post.text}")
+    
+    # Access metadata
+    if hasattr(page, 'meta') and page.meta:
+        print(f"Next token: {page.meta.next_token}")
+```
+
+### Unlimited Pages
+
+```python
+# Iterate through all pages (no limit)
+for page in search_cursor.pages():
+    print(f"Page with {len(page.data)} results")
+    # Process page...
+```
+
+## Iterating Over Items
+
+Use `.items()` to iterate over individual items across all pages:
+
+```python
+from xdk import cursor
+
+# Get user's followers
+followers_cursor = cursor(
+    client.users.get_users_followers,
+    "user_id",
+    max_results=100  # 100 per page
+)
+
+# Iterate over individual users (up to 250 total)
+for user in followers_cursor.items(limit=250):
+    print(f"{user.name} (@{user.username})")
+```
+
+### How Items Work
+
+The `.items()` method automatically:
+1. Fetches pages as needed
+2. Extracts items from the `data`, `results`, or `items` field
+3. Yields individual items one at a time
+4. Continues to the next page when the current page is exhausted
+
+```python
+# Unlimited items - iterate through all results
+for follower in followers_cursor.items():
+    print(follower.username)
+```
+
+## Paginatable Methods
+
+A method is paginatable if it accepts pagination parameters:
+
+- `pagination_token` - Token for the next page
+- `next_token` - Alternative name for pagination token
+- `max_results` - Number of results per page
+
+### Validation
+
+The Cursor validates methods at initialization:
+
+```python
+from xdk.paginator import PaginationError
+
+try:
+    # This will fail if the method doesn't support pagination
+    invalid_cursor = Cursor(client.users.find_user_by_id, "user_id")
+except PaginationError as e:
+    print(f"Error: {e}")
+    # Error: Method 'find_user_by_id' does not support pagination.
+    # Paginatable methods must accept 'pagination_token', 
+    # 'next_token', and/or 'max_results' parameters.
+```
+
+## Common Patterns
+
+### Search Posts with Items
+
+```python
+# Search for recent posts about Python
+search = cursor(
+    client.posts.search_posts_recent,
+    "python programming",
+    max_results=100
+)
+
+# Get first 500 matching posts
+for post in search.items(limit=500):
+    print(f"{post.author_id}: {post.text}")
+```
+
+### User Followers with Pages
+
+```python
+# Get all followers in batches
+followers = cursor(
+    client.users.get_users_followers,
+    "783214",  # Twitter's user ID
+    max_results=1000
+)
+
+total = 0
+for page in followers.pages():
+    batch_size = len(page.data)
+    total += batch_size
+    print(f"Processed {batch_size} followers (total: {total})")
+```
+
+### List Members with Custom Parameters
+
+```python
+# Get list members with user fields
+list_members = cursor(
+    client.lists.get_list_members,
+    "list_id",
+    max_results=100,
+    user_fields=["created_at", "description", "public_metrics"]
+)
+
+for user in list_members.items(limit=1000):
+    print(f"{user.username}: {user.public_metrics.followers_count} followers")
+```
+
+## Type Safety
+
+The Cursor preserves the return type of the wrapped method:
+
+```python
+from xdk import cursor
+
+# Type is inferred as Cursor[GetUsersResponse]
+users_cursor = cursor(
+    client.users.get_users_blocking, 
+    "user_id", 
+    max_results=100
+)
+
+# page is typed as GetUsersResponse
+for page in users_cursor.pages(5):
+    print(len(page.data))  # Type checker knows page has .data
+
+# user is typed based on response.data items
+for user in users_cursor.items(100):
+    print(user.username)  # Type checker knows user has .username
+```
+
+## Pagination Token Handling
+
+The Cursor automatically handles pagination tokens:
+
+```python
+# Cursor extracts tokens from:
+# - response.meta.next_token (most common)
+# - response.next_token (some endpoints)
+# - response.__pydantic_extra__["meta"]["next_token"] (extra fields)
+
+# You don't need to manage tokens manually!
+for page in cursor.pages():
+    # Cursor automatically uses the next_token from previous page
+    process_page(page)
+```
+
+## Error Handling
+
+```python
+from xdk.paginator import PaginationError
+
+try:
+    search = cursor(
+        client.posts.search_posts_recent,
+        "query",
+        max_results=100
+    )
+    
+    for post in search.items(limit=1000):
+        print(post.text)
+        
+except PaginationError as e:
+    print(f"Pagination error: {e}")
+except Exception as e:
+    print(f"API error: {e}")
+```
+
+## Best Practices
+
+<Card title="Use Limits" icon="gauge">
+  Always set reasonable limits to avoid fetching more data than needed and exceeding rate limits.
+</Card>
+
+<Card title="Choose the Right Method" icon="list-check">
+  Use `.items()` when you need individual items, `.pages()` when you need access to metadata or full responses.
+</Card>
+
+<Card title="Set max_results" icon="sliders">
+  Configure `max_results` parameter to balance between API calls and response size (higher = fewer calls).
+</Card>
+
+<Card title="Handle Rate Limits" icon="clock">
+  Implement rate limit handling when paginating through large datasets to avoid API throttling.
+</Card>

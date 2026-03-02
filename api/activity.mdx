@@ -1,0 +1,113 @@
+---
+title: 'Activity'
+description: 'Streaming client for activity operations'
+---
+
+## ActivityClient
+
+The `ActivityClient` provides methods for streaming X Activities and managing activity subscriptions.
+
+### stream
+
+Stream of X Activities in real-time.
+
+```python
+from xdk.streaming import StreamConfig
+
+config = StreamConfig(
+    max_retries=-1,  # Infinite retries
+    initial_backoff=1.0,
+    max_backoff=60.0
+)
+
+for event in client.activity.stream(
+    backfill_minutes=5,
+    stream_config=config
+):
+    print(f"Activity event: {event}")
+```
+
+<ParamField path="backfill_minutes" type="int" optional>
+  The number of minutes of backfill requested.
+</ParamField>
+
+<ParamField path="start_time" type="str" optional>
+  YYYY-MM-DDTHH:mm:ssZ. The earliest UTC timestamp from which the Post labels will be provided.
+</ParamField>
+
+<ParamField path="end_time" type="str" optional>
+  YYYY-MM-DDTHH:mm:ssZ. The latest UTC timestamp from which the Post labels will be provided.
+</ParamField>
+
+<ParamField path="stream_config" type="StreamConfig" optional>
+  Optional StreamConfig for customizing retry behavior, timeouts, and callbacks.
+</ParamField>
+
+<ResponseField name="StreamResponse" type="Generator">
+  Generator that yields individual streaming data items. Automatically manages connection with exponential backoff retry logic.
+</ResponseField>
+
+### create_subscription
+
+Creates a subscription for an X activity event.
+
+```python
+from xdk.activity.models import CreateSubscriptionRequest
+
+response = client.activity.create_subscription(
+    body=CreateSubscriptionRequest(
+        event_type="post.created",
+        webhook_url="https://example.com/webhook"
+    )
+)
+```
+
+<ParamField path="body" type="CreateSubscriptionRequest" optional>
+  Request body containing subscription details.
+</ParamField>
+
+<ResponseField name="CreateSubscriptionResponse" type="object">
+  Response containing the created subscription details.
+</ResponseField>
+
+### get_subscriptions
+
+Get a list of active subscriptions for X Activity.
+
+```python
+for page in client.activity.get_subscriptions(
+    max_results=50
+):
+    for subscription in page.data:
+        print(f"Subscription: {subscription.id}")
+```
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results to return per page.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  This parameter is used to get the next 'page' of results.
+</ParamField>
+
+<ResponseField name="GetSubscriptionsResponse" type="Iterator">
+  Iterator that yields pages of subscriptions. Automatically handles pagination.
+</ResponseField>
+
+### delete_subscription
+
+Deletes a subscription for an X activity event.
+
+```python
+response = client.activity.delete_subscription(
+    subscription_id="1234567890"
+)
+```
+
+<ParamField path="subscription_id" type="str" required>
+  The ID of the subscription to delete.
+</ParamField>
+
+<ResponseField name="DeleteSubscriptionResponse" type="object">
+  Response confirming the subscription was deleted.
+</ResponseField>

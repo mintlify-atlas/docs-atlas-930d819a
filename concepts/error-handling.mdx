@@ -1,0 +1,484 @@
+---
+title: Error Handling
+description: Comprehensive error handling patterns for API requests, pagination, and streaming
+---
+
+## Overview
+
+The XDK provides structured error handling across all operations. Understanding error types and patterns helps you build robust applications that gracefully handle failures.
+
+## API Errors
+
+Standard API requests raise exceptions for HTTP errors:
+
+```python
+from xdk import Client
+import requests
+
+client = Client(bearer_token="your_token")
+
+try:
+    user = client.users.find_user_by_username("nonexistent_user")
+except requests.HTTPError as e:
+    if e.response.status_code == 404:
+        print("User not found")
+    elif e.response.status_code == 401:
+        print("Authentication failed")
+    elif e.response.status_code == 429:
+        print("Rate limited")
+    else:
+        print(f"HTTP error: {e}")
+except requests.RequestException as e:
+    print(f"Request failed: {e}")
+```
+
+## HTTP Status Codes
+
+Common HTTP status codes you'll encounter:
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 200 | Success | Request completed successfully |
+| 400 | Bad Request | Check request parameters |
+| 401 | Unauthorized | Check authentication credentials |
+| 403 | Forbidden | Check OAuth scopes/permissions |
+| 404 | Not Found | Resource doesn't exist |
+| 429 | Too Many Requests | Rate limited - wait and retry |
+| 500 | Internal Server Error | X API server error - retry |
+| 503 | Service Unavailable | X API temporarily down - retry |
+
+## Pagination Errors
+
+Pagination-specific errors use `PaginationError`:
+
+```python
+from xdk import cursor
+from xdk.paginator import PaginationError
+
+try:
+    # Attempting to paginate a non-paginatable method
+    invalid_cursor = cursor(
+        client.users.find_user_by_id,
+        "user_id"
+    )
+except PaginationError as e:
+    print(f"Pagination error: {e}")
+    # Error: Method 'find_user_by_id' does not support pagination.
+    # Paginatable methods must accept 'pagination_token', 
+    # 'next_token', and/or 'max_results' parameters.
+```
+
+### Handling Pagination Failures
+
+```python
+from xdk import cursor
+from xdk.paginator import PaginationError
+import requests
+
+try:
+    search = cursor(
+        client.posts.search_posts_recent,
+        "query",
+        max_results=100
+    )
+    
+    for post in search.items(limit=1000):
+        print(post.text)
+        
+except PaginationError as e:
+    print(f"Pagination setup error: {e}")
+except requests.HTTPError as e:
+    if e.response.status_code == 429:
+        print("Rate limited during pagination")
+        # Implement backoff logic
+    else:
+        print(f"API error during pagination: {e}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+## Streaming Errors
+
+Streaming operations use structured `StreamError` classification:
+
+```python
+from xdk.streaming import StreamConfig, StreamError, StreamErrorType
+
+client = Client(bearer_token="your_token")
+
+config = StreamConfig(
+    max_retries=10,
+    on_error=lambda e: print(f"Stream error: {e.message}")
+)
+
+try:
+    for event in client.stream.sample_stream(config=config):
+        process_event(event)
+        
+except StreamError as e:
+    # Check error type
+    if e.error_type == StreamErrorType.AUTHENTICATION_ERROR:
+        print(f"Auth failed: {e.message}")
+        # Check credentials and scopes
+        
+    elif e.error_type == StreamErrorType.RATE_LIMITED:
+        print(f"Rate limited: {e.message}")
+        # Wait before reconnecting
+        
+    elif e.error_type == StreamErrorType.CONNECTION_ERROR:
+        print(f"Connection failed: {e.message}")
+        # Check network connectivity
+        
+    elif e.error_type == StreamErrorType.FATAL_ERROR:
+        print(f"Fatal error: {e.message}")
+        # Log and alert
+    
+    # Access additional error context
+    if e.status_code:
+        print(f"HTTP Status: {e.status_code}")
+    if e.response_body:
+        print(f"Response: {e.response_body}")
+    if e.original_exception:
+        print(f"Original: {type(e.original_exception).__name__}")
+```
+
+### StreamError Properties
+
+```python
+class StreamError(Exception):
+    message: str                           # Human-readable description
+    error_type: StreamErrorType           # Error classification
+    original_exception: Optional[Exception] # Underlying exception
+    status_code: Optional[int]            # HTTP status code
+    response_body: Optional[str]          # Response body text
+    
+    @property
+    def is_retryable(self) -> bool:
+        """True if error should trigger automatic retry"""
+```
+
+## Rate Limiting
+
+Handle rate limits with exponential backoff:
+
+```python
+import time
+import requests
+
+def make_request_with_retry(func, *args, max_retries=5, **kwargs):
+    """Execute API request with exponential backoff on rate limits."""
+    backoff = 1
+    
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+            
+        except requests.HTTPError as e:
+            if e.response.status_code == 429:
+                # Check for Retry-After header
+                retry_after = e.response.headers.get('Retry-After')
+                
+                if retry_after:
+                    wait_time = int(retry_after)
+                else:
+                    wait_time = backoff
+                    backoff *= 2  # Exponential backoff
+                
+                print(f"Rate limited. Waiting {wait_time}s...")
+                time.sleep(wait_time)
+                
+                if attempt == max_retries - 1:
+                    raise  # Re-raise on last attempt
+            else:
+                raise  # Re-raise non-rate-limit errors
+    
+    raise Exception("Max retries exceeded")
+
+# Usage
+try:
+    user = make_request_with_retry(
+        client.users.find_user_by_username,
+        "username"
+    )
+    print(user.data.name)
+except requests.HTTPError as e:
+    print(f"Request failed: {e}")
+```
+
+## OAuth Token Errors
+
+Handle token expiration and refresh:
+
+```python
+from xdk import Client
+import requests
+
+client = Client(
+    client_id="your_client_id",
+    client_secret="your_client_secret",
+    token=saved_token
+)
+
+def make_authenticated_request(func, *args, **kwargs):
+    """Execute request with automatic token refresh."""
+    try:
+        # Check if token is expired
+        if client.is_token_expired():
+            print("Token expired, refreshing...")
+            client.refresh_token()
+        
+        return func(*args, **kwargs)
+        
+    except requests.HTTPError as e:
+        if e.response.status_code == 401:
+            # Token may have been revoked or is invalid
+            print("Authentication failed, attempting refresh...")
+            try:
+                client.refresh_token()
+                return func(*args, **kwargs)  # Retry
+            except Exception as refresh_error:
+                print(f"Token refresh failed: {refresh_error}")
+                # Re-authenticate user
+                raise
+        else:
+            raise
+
+# Usage
+try:
+    me = make_authenticated_request(
+        client.users.find_my_user
+    )
+    print(me.data.username)
+except requests.HTTPError as e:
+    print(f"Request failed: {e}")
+```
+
+## Validation Errors
+
+Pydantic validation errors for response models:
+
+```python
+from pydantic import ValidationError
+import requests
+
+try:
+    response = client.users.find_user_by_username("username")
+    
+    # Access validated data
+    user = response.data
+    print(user.name)
+    
+except ValidationError as e:
+    # Response didn't match expected schema
+    print(f"Validation error: {e}")
+    for error in e.errors():
+        print(f"  Field: {error['loc']}")
+        print(f"  Error: {error['msg']}")
+        
+except requests.HTTPError as e:
+    print(f"API error: {e}")
+```
+
+## Comprehensive Error Handler
+
+```python
+import logging
+import requests
+from xdk import Client
+from xdk.streaming import StreamError, StreamErrorType
+from xdk.paginator import PaginationError
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
+
+class APIErrorHandler:
+    """Centralized error handling for XDK operations."""
+    
+    @staticmethod
+    def handle_http_error(e: requests.HTTPError) -> None:
+        """Handle HTTP errors with appropriate logging and actions."""
+        status = e.response.status_code
+        
+        if status == 400:
+            logger.error(f"Bad request: {e.response.text}")
+        elif status == 401:
+            logger.error("Authentication failed - check credentials")
+        elif status == 403:
+            logger.error("Forbidden - check OAuth scopes")
+        elif status == 404:
+            logger.warning("Resource not found")
+        elif status == 429:
+            retry_after = e.response.headers.get('Retry-After', 'unknown')
+            logger.warning(f"Rate limited - retry after {retry_after}s")
+        elif status >= 500:
+            logger.error(f"Server error {status}: {e.response.text}")
+        else:
+            logger.error(f"HTTP error {status}: {e}")
+    
+    @staticmethod
+    def handle_stream_error(e: StreamError) -> None:
+        """Handle streaming errors with type-specific logic."""
+        logger.error(f"Stream error [{e.error_type.value}]: {e.message}")
+        
+        if e.status_code:
+            logger.error(f"HTTP Status: {e.status_code}")
+        
+        if e.error_type == StreamErrorType.AUTHENTICATION_ERROR:
+            logger.critical("Stream auth failed - check credentials")
+        elif e.error_type == StreamErrorType.RATE_LIMITED:
+            logger.warning("Stream rate limited")
+        elif e.error_type == StreamErrorType.CONNECTION_ERROR:
+            logger.warning("Stream connection failed - will retry")
+    
+    @staticmethod
+    def handle_validation_error(e: ValidationError) -> None:
+        """Handle Pydantic validation errors."""
+        logger.error("Response validation failed:")
+        for error in e.errors():
+            logger.error(f"  {error['loc']}: {error['msg']}")
+    
+    @staticmethod
+    def handle_pagination_error(e: PaginationError) -> None:
+        """Handle pagination setup errors."""
+        logger.error(f"Pagination error: {e}")
+
+# Usage example
+error_handler = APIErrorHandler()
+
+try:
+    user = client.users.find_user_by_username("username")
+    print(user.data.name)
+    
+except requests.HTTPError as e:
+    error_handler.handle_http_error(e)
+except ValidationError as e:
+    error_handler.handle_validation_error(e)
+except Exception as e:
+    logger.exception(f"Unexpected error: {e}")
+```
+
+## Error Recovery Patterns
+
+### Retry with Exponential Backoff
+
+```python
+import time
+import random
+
+def retry_with_backoff(func, max_retries=5, initial_delay=1):
+    """Retry function with exponential backoff and jitter."""
+    delay = initial_delay
+    
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except requests.HTTPError as e:
+            if e.response.status_code < 500 and e.response.status_code != 429:
+                # Don't retry client errors (except rate limits)
+                raise
+            
+            if attempt == max_retries - 1:
+                raise
+            
+            # Add jitter to prevent thundering herd
+            jitter = random.uniform(0, 0.3 * delay)
+            sleep_time = delay + jitter
+            
+            print(f"Attempt {attempt + 1} failed, retrying in {sleep_time:.1f}s")
+            time.sleep(sleep_time)
+            delay *= 2  # Exponential backoff
+
+# Usage
+try:
+    result = retry_with_backoff(
+        lambda: client.posts.find_post_by_id("post_id")
+    )
+    print(result.data.text)
+except requests.HTTPError as e:
+    print(f"Failed after retries: {e}")
+```
+
+### Circuit Breaker Pattern
+
+```python
+import time
+from enum import Enum
+
+class CircuitState(Enum):
+    CLOSED = "closed"    # Normal operation
+    OPEN = "open"        # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
+
+class CircuitBreaker:
+    def __init__(self, failure_threshold=5, timeout=60):
+        self.failure_threshold = failure_threshold
+        self.timeout = timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = CircuitState.CLOSED
+    
+    def call(self, func, *args, **kwargs):
+        if self.state == CircuitState.OPEN:
+            if time.time() - self.last_failure_time >= self.timeout:
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception("Circuit breaker is OPEN")
+        
+        try:
+            result = func(*args, **kwargs)
+            self.on_success()
+            return result
+        except Exception as e:
+            self.on_failure()
+            raise
+    
+    def on_success(self):
+        self.failure_count = 0
+        self.state = CircuitState.CLOSED
+    
+    def on_failure(self):
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+
+# Usage
+breaker = CircuitBreaker(failure_threshold=3, timeout=30)
+
+try:
+    result = breaker.call(
+        client.users.find_user_by_username,
+        "username"
+    )
+    print(result.data.name)
+except Exception as e:
+    print(f"Request failed: {e}")
+    print(f"Circuit state: {breaker.state.value}")
+```
+
+## Best Practices
+
+<Card title="Use Specific Exception Handling" icon="filter">
+  Catch specific exception types (HTTPError, StreamError, PaginationError) rather than generic Exception.
+</Card>
+
+<Card title="Implement Retry Logic" icon="rotate">
+  Use exponential backoff for retryable errors (rate limits, server errors, connection issues).
+</Card>
+
+<Card title="Log Error Context" icon="file-lines">
+  Log HTTP status codes, response bodies, and error types to aid debugging.
+</Card>
+
+<Card title="Monitor Error Patterns" icon="chart-line">
+  Track error frequencies and types to identify systemic issues.
+</Card>
+
+<Card title="Handle Token Expiration" icon="key">
+  Check token expiration proactively and refresh before requests fail.
+</Card>
+
+<Card title="Don't Retry Client Errors" icon="ban">
+  4xx errors (except 429) indicate client-side issues that won't resolve with retries.
+</Card>

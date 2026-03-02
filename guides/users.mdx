@@ -1,0 +1,458 @@
+---
+title: 'Working with Users'
+description: 'Learn how to manage user profiles, follow/unfollow, block users, and retrieve user data'
+---
+
+## Overview
+
+The Users client provides methods for retrieving user information, managing relationships (follows, blocks, mutes), and interacting with user content. This guide covers common user management workflows.
+
+## Getting User Information
+
+### Get Authenticated User
+
+Retrieve information about the authenticated user:
+
+```python users/client.py:818-975
+from xdk import Client
+
+client = Client(access_token="YOUR_ACCESS_TOKEN")
+
+# Get your own user information
+response = client.users.get_me(
+    user_fields=["created_at", "description", "public_metrics", "verified"],
+    expansions=["pinned_tweet_id"],
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+user = response.data
+print(f"Username: @{user.username}")
+print(f"Followers: {user.public_metrics.followers_count}")
+print(f"Bio: {user.description}")
+```
+
+**Response Structure:**
+```python
+{
+  "data": {
+    "id": "123456789",
+    "username": "xdevelopers",
+    "name": "X Developers",
+    "created_at": "2007-05-23T06:01:13.000Z",
+    "description": "Official X Developers account",
+    "public_metrics": {
+      "followers_count": 1000000,
+      "following_count": 500,
+      "tweet_count": 5000,
+      "listed_count": 1234
+    },
+    "verified": true
+  }
+}
+```
+
+### Get User by ID
+
+```python
+response = client.users.get_by_id(
+    id="123456789",
+    user_fields=["profile_image_url", "public_metrics", "verified"],
+    expansions=["pinned_tweet_id"]
+)
+
+user = response.data
+print(f"@{user.username}: {user.description}")
+```
+
+### Get User by Username
+
+```python
+response = client.users.get_by_username(
+    username="xdevelopers",
+    user_fields=["created_at", "description", "location", "verified"]
+)
+
+user = response.data
+print(f"User ID: {user.id}")
+print(f"Location: {user.location}")
+```
+
+### Get Multiple Users
+
+Retrieve up to 100 users by ID or username:
+
+```python
+# By IDs
+response = client.users.get_by_ids(
+    ids=["123456789", "987654321"],
+    user_fields=["username", "verified", "public_metrics"]
+)
+
+for user in response.data:
+    print(f"@{user.username} - Followers: {user.public_metrics.followers_count}")
+
+# By usernames
+response = client.users.get_by_usernames(
+    usernames=["xdevelopers", "twitterapi"],
+    user_fields=["description", "verified"]
+)
+```
+
+## Managing Follows
+
+<Steps>
+  <Step title="Follow a user">
+    ```python
+    from xdk.users.models import FollowUserRequest
+
+    # Follow a user
+    response = client.users.follow_user(
+        id="YOUR_USER_ID",  # Your user ID
+        body=FollowUserRequest(target_user_id="123456789")
+    )
+
+    if response.data.following:
+        print("Successfully followed user")
+    ```
+  </Step>
+
+  <Step title="Unfollow a user">
+    ```python
+    # Unfollow a user
+    response = client.users.unfollow_user(
+        source_user_id="YOUR_USER_ID",
+        target_user_id="123456789"
+    )
+
+    if not response.data.following:
+        print("Successfully unfollowed user")
+    ```
+  </Step>
+
+  <Step title="Get followers">
+    ```python
+    # Get your followers
+    for page in client.users.get_followers(
+        id="YOUR_USER_ID",
+        max_results=100,
+        user_fields=["username", "verified", "public_metrics"]
+    ):
+        for user in page.data:
+            print(f"Follower: @{user.username}")
+    ```
+  </Step>
+
+  <Step title="Get following">
+    ```python users/client.py:405-653
+    # Get users you're following
+    for page in client.users.get_following(
+        id="YOUR_USER_ID",
+        max_results=100,
+        user_fields=["username", "description"]
+    ):
+        for user in page.data:
+            print(f"Following: @{user.username}")
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Following/unfollowing requires OAuth 2.0 User Context or OAuth 1.0a authentication. You must authenticate as the user performing the action.
+</Note>
+
+## Blocking Users
+
+### Block a User
+
+```python
+from xdk.users.models import BlockUserRequest
+
+# Block a user
+response = client.users.block_user(
+    id="YOUR_USER_ID",
+    body=BlockUserRequest(target_user_id="123456789")
+)
+
+if response.data.blocking:
+    print("User blocked successfully")
+```
+
+### Unblock a User
+
+```python
+# Unblock a user
+response = client.users.unblock_user(
+    source_user_id="YOUR_USER_ID",
+    target_user_id="123456789"
+)
+
+if not response.data.blocking:
+    print("User unblocked successfully")
+```
+
+### Get Blocked Users
+
+```python
+# Get list of users you've blocked
+for page in client.users.get_blocking(
+    id="YOUR_USER_ID",
+    max_results=100,
+    user_fields=["username", "created_at"]
+):
+    for user in page.data:
+        print(f"Blocked: @{user.username}")
+```
+
+## Muting Users
+
+### Mute a User
+
+```python
+from xdk.users.models import MuteUserRequest
+
+# Mute a user (hide their posts from your timeline)
+response = client.users.mute_user(
+    id="YOUR_USER_ID",
+    body=MuteUserRequest(target_user_id="123456789")
+)
+
+if response.data.muting:
+    print("User muted successfully")
+```
+
+### Unmute a User
+
+```python
+# Unmute a user
+response = client.users.unmute_user(
+    source_user_id="YOUR_USER_ID",
+    target_user_id="123456789"
+)
+
+if not response.data.muting:
+    print("User unmuted successfully")
+```
+
+### Get Muted Users
+
+```python
+# Get list of muted users
+for page in client.users.get_muting(
+    id="YOUR_USER_ID",
+    max_results=100,
+    user_fields=["username", "profile_image_url"]
+):
+    for user in page.data:
+        print(f"Muted: @{user.username}")
+```
+
+## Blocking Direct Messages
+
+Control who can send you direct messages:
+
+```python
+# Block DMs from a specific user
+response = client.users.block_dms(
+    participant_id="YOUR_USER_ID",
+    body={"target_user_id": "123456789"}
+)
+
+if response.data.dm_conversation_blocked:
+    print("DMs blocked from this user")
+
+# Unblock DMs
+response = client.users.unblock_dms(
+    source_user_id="YOUR_USER_ID",
+    target_user_id="123456789"
+)
+```
+
+## User Timeline
+
+Get posts from a user's timeline:
+
+```python users/client.py:1141-1216
+# Get user's timeline
+for page in client.users.get_timeline(
+    id="YOUR_USER_ID",
+    max_results=100,
+    exclude=["retweets", "replies"],  # Only original posts
+    tweet_fields=["created_at", "public_metrics", "entities"],
+    expansions=["attachments.media_keys"],
+    media_fields=["url", "preview_image_url"]
+):
+    for tweet in page.data:
+        print(f"{tweet.created_at}: {tweet.text}")
+```
+
+**Timeline Options:**
+- `exclude=["retweets"]` - Exclude retweets
+- `exclude=["replies"]` - Exclude replies
+- `since_id` - Get posts newer than this ID
+- `until_id` - Get posts older than this ID
+- `start_time` / `end_time` - Filter by time range
+
+## Liking Posts
+
+### Like a Post
+
+```python users/client.py:978-1138
+from xdk.users.models import LikePostRequest
+
+# Like a post
+response = client.users.like_post(
+    id="YOUR_USER_ID",
+    body=LikePostRequest(tweet_id="1234567890")
+)
+
+if response.data.liked:
+    print("Post liked successfully")
+```
+
+### Unlike a Post
+
+```python
+# Unlike a post
+response = client.users.unlike_post(
+    id="YOUR_USER_ID",
+    tweet_id="1234567890"
+)
+
+if not response.data.liked:
+    print("Post unliked successfully")
+```
+
+### Get Liked Posts
+
+```python
+# Get posts you've liked
+for page in client.users.get_liked_posts(
+    id="YOUR_USER_ID",
+    max_results=100,
+    tweet_fields=["created_at", "author_id", "public_metrics"],
+    expansions=["author_id"],
+    user_fields=["username"]
+):
+    for tweet in page.data:
+        print(f"Liked: {tweet.text}")
+```
+
+## Bookmarks
+
+### Create a Bookmark
+
+```python
+from xdk.users.models import CreateBookmarkRequest
+
+# Bookmark a post
+response = client.users.create_bookmark(
+    id="YOUR_USER_ID",
+    body=CreateBookmarkRequest(tweet_id="1234567890")
+)
+
+if response.data.bookmarked:
+    print("Post bookmarked successfully")
+```
+
+### Get Bookmarks
+
+```python
+# Get your bookmarked posts
+for page in client.users.get_bookmarks(
+    id="YOUR_USER_ID",
+    max_results=100,
+    tweet_fields=["created_at", "author_id"],
+    expansions=["author_id"]
+):
+    for tweet in page.data:
+        print(f"Bookmark: {tweet.text}")
+```
+
+### Delete a Bookmark
+
+```python
+# Remove a bookmark
+response = client.users.delete_bookmark(
+    id="YOUR_USER_ID",
+    tweet_id="1234567890"
+)
+
+if not response.data.bookmarked:
+    print("Bookmark removed successfully")
+```
+
+## Searching Users
+
+```python
+# Search for users by username or bio
+for page in client.users.search(
+    query="developer python",
+    max_results=100,
+    user_fields=["description", "verified", "public_metrics"]
+):
+    for user in page.data:
+        print(f"@{user.username}: {user.description}")
+```
+
+## Available User Fields
+
+### User Fields
+- `id` - Unique user identifier
+- `username` - @handle
+- `name` - Display name
+- `created_at` - Account creation date
+- `description` - Bio text
+- `location` - User-defined location
+- `profile_image_url` - Profile picture URL
+- `verified` - Verification status
+- `public_metrics` - Follower counts, tweet count
+- `protected` - Whether account is private
+- `url` - Website URL
+- `entities` - URLs in bio
+
+### Expansions
+- `pinned_tweet_id` - Expand pinned tweet
+
+## Pagination with Users
+
+```python
+# Get followers with automatic pagination
+all_followers = []
+
+for page in client.users.get_followers(
+    id="123456789",
+    max_results=1000
+):
+    all_followers.extend(page.data or [])
+    
+    # Break after 5000 followers
+    if len(all_followers) >= 5000:
+        break
+
+print(f"Retrieved {len(all_followers)} followers")
+```
+
+## Error Handling
+
+```python
+from requests.exceptions import HTTPError
+
+try:
+    response = client.users.follow_user(
+        id="YOUR_USER_ID",
+        body=FollowUserRequest(target_user_id="123456789")
+    )
+    print("Successfully followed user")
+    
+except HTTPError as e:
+    if e.response.status_code == 403:
+        print("Cannot follow this user (blocked or protected)")
+    elif e.response.status_code == 404:
+        print("User not found")
+    else:
+        print(f"Error: {e.response.text}")
+```
+
+<Tip>
+  When working with user relationships (follows, blocks, mutes), always check the response data to confirm the operation succeeded.
+</Tip>

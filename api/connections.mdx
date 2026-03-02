@@ -1,0 +1,98 @@
+---
+title: 'Connections'
+description: 'Client for connections operations'
+---
+
+## ConnectionsClient
+
+The `ConnectionsClient` provides methods for managing streaming connections, including viewing connection history and terminating active connections.
+
+### get_connection_history
+
+Returns active and historical streaming connections with disconnect reasons for the authenticated application.
+
+```python
+for page in client.connections.get_connection_history(
+    status="active",
+    max_results=50,
+    connection_fields=["id", "endpoint", "status", "disconnect_reason"]
+):
+    for connection in page.data:
+        print(f"Connection {connection.id}: {connection.status}")
+```
+
+<ParamField path="status" type="str" optional>
+  Filter by connection status. Use 'active' for current connections, 'inactive' for historical/disconnected connections, or 'all' for both.
+</ParamField>
+
+<ParamField path="endpoints" type="List[str]" optional>
+  Filter by streaming endpoint. Specify one or more endpoint names to filter results.
+</ParamField>
+
+<ParamField path="max_results" type="int" optional>
+  The maximum number of results to return per page.
+</ParamField>
+
+<ParamField path="pagination_token" type="str" optional>
+  Token for paginating through results. Use the value from 'next_token' in the previous response.
+</ParamField>
+
+<ParamField path="connection_fields" type="List[str]" optional>
+  A comma separated list of Connection fields to display.
+</ParamField>
+
+<ResponseField name="GetConnectionHistoryResponse" type="Iterator">
+  Iterator that yields pages of connection history. Automatically handles pagination.
+</ResponseField>
+
+### delete_by_endpoint
+
+Terminates all streaming connections for a specific endpoint ID for the authenticated application.
+
+```python
+response = client.connections.delete_by_endpoint(
+    endpoint_id="filtered_stream"
+)
+```
+
+<ParamField path="endpoint_id" type="str" required>
+  The endpoint ID to terminate connections for.
+</ParamField>
+
+<ResponseField name="DeleteByEndpointResponse" type="object">
+  Response confirming connections were terminated.
+</ResponseField>
+
+### delete_by_uuids
+
+Terminates multiple streaming connections by their UUIDs for the authenticated application.
+
+```python
+from xdk.connections.models import DeleteByUuidsRequest
+
+response = client.connections.delete_by_uuids(
+    body=DeleteByUuidsRequest(
+        uuids=["uuid-1", "uuid-2", "uuid-3"]
+    )
+)
+```
+
+<ParamField path="body" type="DeleteByUuidsRequest" required>
+  Request body containing the list of connection UUIDs to terminate.
+</ParamField>
+
+<ResponseField name="DeleteByUuidsResponse" type="object">
+  Response confirming connections were terminated.
+</ResponseField>
+
+### delete_all
+
+Terminates all active streaming connections for the authenticated application.
+
+```python
+response = client.connections.delete_all()
+```
+
+<ResponseField name="DeleteAllResponse" type="object">
+  Response confirming all connections were terminated.
+</ResponseField>

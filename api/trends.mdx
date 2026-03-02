@@ -1,0 +1,54 @@
+---
+title: 'Trends'
+description: 'Client for trends operations'
+---
+
+## TrendsClient
+
+The `TrendsClient` provides methods for retrieving trending topics and personalized trends.
+
+### get_personalized
+
+Retrieves personalized trending topics for the authenticated user.
+
+```python
+response = client.trends.get_personalized(
+    personalized_trend_fields=["trend_name", "tweet_count"]
+)
+```
+
+<ParamField path="personalized_trend_fields" type="List[str]" optional>
+  A comma separated list of PersonalizedTrend fields to display.
+</ParamField>
+
+<ResponseField name="GetPersonalizedResponse" type="object">
+  Response containing personalized trending topics for the authenticated user.
+</ResponseField>
+
+### get_by_woeid
+
+Retrieves trending topics for a specific location identified by its WOEID (Where On Earth ID).
+
+```python
+response = client.trends.get_by_woeid(
+    woeid=1,
+    max_trends=10,
+    trend_fields=["trend_name", "tweet_count"]
+)
+```
+
+<ParamField path="woeid" type="int" required>
+  The WOEID of the place to lookup a trend for.
+</ParamField>
+
+<ParamField path="max_trends" type="int" optional>
+  The maximum number of results.
+</ParamField>
+
+<ParamField path="trend_fields" type="List[str]" optional>
+  A comma separated list of Trend fields to display.
+</ParamField>
+
+<ResponseField name="GetByWoeidResponse" type="object">
+  Response containing trending topics for the specified location.
+</ResponseField>

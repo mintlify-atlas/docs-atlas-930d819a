@@ -1,0 +1,328 @@
+---
+title: Bearer Token Authentication
+description: Use simple bearer token authentication for read-only operations
+---
+
+Bearer token authentication is the simplest authentication method for XDK Python. It's ideal for read-only operations and applications that don't require user context.
+
+## Overview
+
+Bearer tokens provide app-level authentication without requiring user authorization. This method is perfect for:
+
+- Reading public tweets and user information
+- Analytics and monitoring applications
+- Bot accounts with read-only access
+- Server-side applications
+
+<Warning>
+Bearer tokens provide app-only context and cannot perform write operations like posting tweets or following users.
+</Warning>
+
+## Getting a Bearer Token
+
+You can obtain a bearer token from the [X Developer Portal](https://developer.x.com):
+
+1. Navigate to your app's settings
+2. Go to the "Keys and tokens" section
+3. Generate a Bearer Token
+4. Store it securely
+
+## Basic Usage
+
+Initialize the Client with your bearer token:
+
+```python
+from xdk import Client
+
+client = Client(
+    bearer_token="your_bearer_token_here"
+)
+
+# Make read-only requests
+tweet = client.posts.get_tweet("1234567890")
+print(f"Tweet text: {tweet.data.text}")
+```
+
+## Using Environment Variables
+
+For better security, store your bearer token in environment variables:
+
+```python
+import os
+from xdk import Client
+
+client = Client(
+    bearer_token=os.getenv("X_BEARER_TOKEN")
+)
+```
+
+```bash
+# Set environment variable
+export X_BEARER_TOKEN="your_bearer_token_here"
+
+# Or use a .env file
+X_BEARER_TOKEN=your_bearer_token_here
+```
+
+## Example Operations
+
+### Read Tweets
+
+```python
+from xdk import Client
+import os
+
+client = Client(bearer_token=os.getenv("X_BEARER_TOKEN"))
+
+# Get a specific tweet
+tweet = client.posts.get_tweet(
+    "1234567890",
+    expansions=["author_id"],
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+print(f"Tweet: {tweet.data.text}")
+print(f"Likes: {tweet.data.public_metrics.like_count}")
+```
+
+### Read User Information
+
+```python
+# Get user by username
+user = client.users.get_user_by_username(
+    "jack",
+    user_fields=["created_at", "description", "public_metrics"]
+)
+
+print(f"User: @{user.data.username}")
+print(f"Followers: {user.data.public_metrics.followers_count}")
+print(f"Bio: {user.data.description}")
+```
+
+### Search Tweets
+
+```python
+# Search recent tweets
+results = client.posts.search_recent(
+    query="python programming",
+    max_results=10,
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+for tweet in results.data:
+    print(f"Tweet: {tweet.text}")
+    print(f"Likes: {tweet.public_metrics.like_count}")
+    print("---")
+```
+
+### Get User's Tweets
+
+```python
+# Get user ID first
+user = client.users.get_user_by_username("jack")
+user_id = user.data.id
+
+# Get their tweets
+tweets = client.posts.get_user_tweets(
+    user_id,
+    max_results=10,
+    tweet_fields=["created_at", "public_metrics"]
+)
+
+for tweet in tweets.data:
+    print(f"{tweet.created_at}: {tweet.text}")
+```
+
+## Limitations
+
+Bearer token authentication has several limitations compared to user-context authentication:
+
+### Cannot Perform
+
+- Posting tweets
+- Liking or retweeting
+- Following users
+- Sending direct messages
+- Accessing private accounts
+- Rate limits are app-level (not user-level)
+
+### Can Perform
+
+- Reading public tweets
+- Reading public user information
+- Searching tweets
+- Getting user timelines (public tweets only)
+- Reading trends
+- Accessing public lists
+
+<Note>
+For write operations and user-specific actions, use [OAuth 2.0 PKCE](/auth/oauth2) or [OAuth 1.0a](/auth/oauth1) authentication.
+</Note>
+
+## Rate Limits
+
+Bearer tokens have different rate limits than user-context authentication:
+
+```python
+from xdk import Client
+import time
+
+client = Client(bearer_token=os.getenv("X_BEARER_TOKEN"))
+
+try:
+    tweet = client.posts.get_tweet("1234567890")
+except Exception as e:
+    if "429" in str(e):  # Rate limit exceeded
+        print("Rate limit exceeded. Waiting...")
+        time.sleep(900)  # Wait 15 minutes
+```
+
+<Warning>
+App-level rate limits are typically lower than user-level limits. Plan your requests accordingly.
+</Warning>
+
+## Security Best Practices
+
+### Never Expose Your Token
+
+```python
+# ❌ BAD - Token in code
+client = Client(bearer_token="AAAAAAAAAAAAAAAAAAAAAMLheAAAAAAA0%2BuSeid...")
+
+# ✅ GOOD - Token from environment
+client = Client(bearer_token=os.getenv("X_BEARER_TOKEN"))
+```
+
+### Store Tokens Securely
+
+- Use environment variables or secret management services
+- Never commit tokens to version control
+- Add `.env` to your `.gitignore`
+- Rotate tokens regularly
+- Monitor token usage
+
+### Protect Token in Logs
+
+```python
+import os
+import logging
+
+# Don't log the token
+token = os.getenv("X_BEARER_TOKEN")
+logging.info(f"Token loaded: {'*' * 20}...")  # ✅ GOOD
+
+# Never do this:
+# logging.info(f"Token: {token}")  # ❌ BAD
+```
+
+## Client Initialization Reference
+
+The Client accepts bearer_token at client.py:64:
+
+```python
+class Client:
+    def __init__(
+        self,
+        base_url: str = "https://api.x.com",
+        bearer_token: str = None,
+        access_token: str = None,
+        # ... other parameters
+    ):
+```
+
+### Parameters
+
+- `base_url` - API base URL (default: `"https://api.x.com"`)
+- `bearer_token` - Your app's bearer token for app-only authentication
+- `access_token` - Alternative parameter for OAuth 2.0 access token
+
+<Note>
+If both `bearer_token` and `access_token` are provided, `access_token` takes precedence for user-context requests.
+</Note>
+
+## Complete Example
+
+```python
+import os
+from xdk import Client
+from datetime import datetime
+
+# Initialize client with bearer token
+client = Client(
+    bearer_token=os.getenv("X_BEARER_TOKEN")
+)
+
+def get_user_stats(username: str):
+    """Get statistics for a user."""
+    try:
+        # Get user information
+        user = client.users.get_user_by_username(
+            username,
+            user_fields=["created_at", "description", "public_metrics", "verified"]
+        )
+        
+        # Extract metrics
+        data = user.data
+        metrics = data.public_metrics
+        
+        print(f"\n=== @{data.username} ===")
+        print(f"Name: {data.name}")
+        print(f"Bio: {data.description}")
+        print(f"Verified: {data.verified}")
+        print(f"Joined: {data.created_at}")
+        print(f"\nMetrics:")
+        print(f"  Followers: {metrics.followers_count:,}")
+        print(f"  Following: {metrics.following_count:,}")
+        print(f"  Tweets: {metrics.tweet_count:,}")
+        
+        # Get recent tweets
+        tweets = client.posts.get_user_tweets(
+            data.id,
+            max_results=5,
+            tweet_fields=["created_at", "public_metrics"]
+        )
+        
+        print(f"\nRecent Tweets:")
+        for tweet in tweets.data:
+            print(f"\n  [{tweet.created_at}]")
+            print(f"  {tweet.text}")
+            print(f"  Likes: {tweet.public_metrics.like_count} | Retweets: {tweet.public_metrics.retweet_count}")
+            
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    # Analyze multiple users
+    users = ["jack", "elonmusk", "OpenAI"]
+    
+    for username in users:
+        get_user_stats(username)
+        print("\n" + "="*50)
+```
+
+## When to Use Bearer Token
+
+Use bearer token authentication when:
+
+- You only need read access to public data
+- You're building analytics or monitoring tools
+- You don't need user-specific context
+- You want the simplest authentication setup
+
+Consider OAuth when:
+
+- You need to post tweets or perform write operations
+- You need access to private user data
+- You're building user-facing applications
+- You need higher rate limits
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="OAuth 2.0 PKCE" icon="shield" href="/auth/oauth2">
+    Upgrade to user-context authentication with OAuth 2.0
+  </Card>
+  <Card title="Client Reference" icon="book" href="/api/client">
+    Learn about all available API methods
+  </Card>
+</CardGroup>

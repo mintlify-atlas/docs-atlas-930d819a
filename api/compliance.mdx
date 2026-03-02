@@ -1,0 +1,82 @@
+---
+title: 'Compliance'
+description: 'Client for compliance operations'
+---
+
+## ComplianceClient
+
+The `ComplianceClient` provides methods for managing compliance jobs to retrieve historical data for tweets and users.
+
+### get_jobs
+
+Retrieves a list of Compliance Jobs filtered by job type and optional status.
+
+```python
+response = client.compliance.get_jobs(
+    type="tweets",
+    status="complete",
+    compliance_job_fields=["id", "type", "status", "created_at"]
+)
+```
+
+<ParamField path="type" type="str" required>
+  Type of Compliance Job to list. Valid values: "tweets" or "users".
+</ParamField>
+
+<ParamField path="status" type="str" optional>
+  Status of Compliance Job to list. Valid values: "created", "in_progress", "complete", "failed".
+</ParamField>
+
+<ParamField path="compliance_job_fields" type="List[str]" optional>
+  A comma separated list of ComplianceJob fields to display.
+</ParamField>
+
+<ResponseField name="GetJobsResponse" type="object">
+  Response containing list of compliance jobs.
+</ResponseField>
+
+### create_jobs
+
+Creates a new Compliance Job for the specified job type.
+
+```python
+from xdk.compliance.models import CreateJobsRequest
+
+response = client.compliance.create_jobs(
+    body=CreateJobsRequest(
+        type="tweets",
+        name="My Compliance Job"
+    )
+)
+```
+
+<ParamField path="body" type="CreateJobsRequest" required>
+  A request to create a new batch compliance job.
+</ParamField>
+
+<ResponseField name="CreateJobsResponse" type="object">
+  Response containing the created compliance job details.
+</ResponseField>
+
+### get_jobs_by_id
+
+Retrieves details of a specific Compliance Job by its ID.
+
+```python
+response = client.compliance.get_jobs_by_id(
+    id="1234567890",
+    compliance_job_fields=["id", "type", "status", "download_url"]
+)
+```
+
+<ParamField path="id" type="str" required>
+  The ID of the Compliance Job to retrieve.
+</ParamField>
+
+<ParamField path="compliance_job_fields" type="List[str]" optional>
+  A comma separated list of ComplianceJob fields to display.
+</ParamField>
+
+<ResponseField name="GetJobsByIdResponse" type="object">
+  Response containing the compliance job details, including download URL when complete.
+</ResponseField>

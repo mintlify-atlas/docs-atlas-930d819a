@@ -1,0 +1,281 @@
+---
+title: OAuth 1.0a Authentication
+description: Implement OAuth 1.0a authentication for user-context operations
+---
+
+OAuth 1.0a provides secure authentication using HMAC-SHA1 signatures. This method is ideal for server-to-server communication and legacy applications.
+
+## Overview
+
+The `OAuth1` class handles the complete OAuth 1.0a flow, including:
+
+- Request token generation
+- User authorization
+- Access token exchange
+- Request signing with HMAC-SHA1
+
+## Class Signature
+
+```python
+from xdk import OAuth1
+
+auth = OAuth1(
+    api_key: str,
+    api_secret: str,
+    callback: str,
+    access_token: Optional[str] = None,
+    access_token_secret: Optional[str] = None
+)
+```
+
+### Parameters
+
+- `api_key` - Your API Key (Consumer Key) from the X Developer Portal
+- `api_secret` - Your API Secret (Consumer Secret)
+- `callback` - Callback URL for the OAuth flow (use `"oob"` for PIN-based flow)
+- `access_token` - Optional: Existing access token if already obtained
+- `access_token_secret` - Optional: Existing access token secret
+
+## OAuth 1.0a Flow
+
+<Steps>
+  <Step title="Initialize OAuth1">
+    Create an OAuth1 instance with your credentials:
+
+    ```python
+    from xdk import OAuth1
+
+    auth = OAuth1(
+        api_key="your_api_key",
+        api_secret="your_api_secret",
+        callback="https://yourapp.com/callback"
+    )
+    ```
+  </Step>
+
+  <Step title="Get Request Token">
+    Obtain a request token to start the authorization flow:
+
+    ```python
+    request_token = auth.get_request_token()
+    print(f"Token: {request_token.oauth_token}")
+    print(f"Secret: {request_token.oauth_token_secret}")
+    ```
+
+    <Note>
+    The request token is temporary and used only for the authorization step.
+    </Note>
+  </Step>
+
+  <Step title="Generate Authorization URL">
+    Direct the user to the authorization URL:
+
+    ```python
+    # Standard authorization flow
+    auth_url = auth.get_authorization_url()
+    
+    # Or use "Sign in with X" flow
+    auth_url = auth.get_authorization_url(login_with_x=True)
+    
+    print(f"Visit this URL to authorize: {auth_url}")
+    ```
+
+    The user will be redirected to your callback URL with an `oauth_verifier` parameter.
+  </Step>
+
+  <Step title="Exchange Verifier for Access Token">
+    Exchange the verifier for an access token:
+
+    ```python
+    # Extract verifier from callback URL
+    verifier = "verifier_from_callback"
+    
+    access_token = auth.get_access_token(verifier)
+    print(f"Access Token: {access_token.access_token}")
+    print(f"Access Token Secret: {access_token.access_token_secret}")
+    ```
+
+    <Warning>
+    Store the access token and secret securely. They don't expire but can be revoked by the user.
+    </Warning>
+  </Step>
+</Steps>
+
+## Using OAuth1 with Client
+
+Pass the OAuth1 instance to the Client:
+
+```python
+from xdk import Client, OAuth1
+
+auth = OAuth1(
+    api_key="your_api_key",
+    api_secret="your_api_secret",
+    callback="https://yourapp.com/callback",
+    access_token="your_access_token",
+    access_token_secret="your_access_token_secret"
+)
+
+client = Client(auth=auth)
+
+# Now you can make authenticated requests
+user = client.users.get_me()
+print(f"Authenticated as: {user.data.username}")
+```
+
+## Convenience Method
+
+Use `start_oauth_flow()` to combine steps 2 and 3:
+
+```python
+# Automatically gets request token and returns authorization URL
+auth_url = auth.start_oauth_flow(login_with_x=True)
+print(f"Visit: {auth_url}")
+
+# Then exchange the verifier
+verifier = input("Enter the verifier: ")
+access_token = auth.get_access_token(verifier)
+```
+
+## PIN-Based Flow (Desktop Apps)
+
+For desktop applications without a web server, use the PIN-based flow:
+
+```python
+auth = OAuth1(
+    api_key="your_api_key",
+    api_secret="your_api_secret",
+    callback="oob"  # "oob" enables PIN-based flow
+)
+
+# Start the flow
+auth_url = auth.start_oauth_flow()
+print(f"Visit this URL and authorize: {auth_url}")
+
+# User gets a PIN code after authorization
+pin = input("Enter the PIN: ")
+access_token = auth.get_access_token(pin)
+```
+
+## Manual Request Signing
+
+For advanced use cases, you can manually sign requests:
+
+```python
+method = "POST"
+url = "https://api.x.com/2/tweets"
+body = '{"text": "Hello World!"}'
+
+# Build OAuth header
+auth_header = auth.build_request_header(method, url, body)
+
+# Use in your request
+import requests
+response = requests.post(
+    url,
+    data=body,
+    headers={
+        "Authorization": auth_header,
+        "Content-Type": "application/json"
+    }
+)
+```
+
+<Note>
+The `build_request_header()` method at client.py:188 handles OAuth 1.0a signature generation automatically.
+</Note>
+
+## Response Objects
+
+### OAuth1RequestToken
+
+Returned by `get_request_token()`:
+
+```python
+class OAuth1RequestToken:
+    oauth_token: str           # Request token
+    oauth_token_secret: str    # Request token secret
+```
+
+### OAuth1AccessToken
+
+Returned by `get_access_token()`:
+
+```python
+class OAuth1AccessToken:
+    access_token: str          # Access token for API requests
+    access_token_secret: str   # Access token secret for signing
+```
+
+## Error Handling
+
+```python
+try:
+    request_token = auth.get_request_token()
+except ValueError as e:
+    print(f"Failed to get request token: {e}")
+
+try:
+    access_token = auth.get_access_token(verifier)
+except ValueError as e:
+    if "request token not obtained" in str(e):
+        print("Call get_request_token() first")
+    else:
+        print(f"Failed to exchange verifier: {e}")
+```
+
+## Security Considerations
+
+<Warning>
+OAuth 1.0a uses HMAC-SHA1 signatures. All requests must be signed with your API secret and token secret.
+</Warning>
+
+- Never expose your `api_secret` or `access_token_secret` in client-side code
+- Use HTTPS for all callback URLs to prevent token interception
+- Store tokens securely using encryption or secure credential storage
+- The signature implementation at oauth1_auth.py:226 follows the OAuth 1.0a RFC 5849 specification
+
+## Complete Example
+
+```python
+import os
+from xdk import Client, OAuth1
+
+# Step 1: Initialize OAuth1
+auth = OAuth1(
+    api_key=os.getenv("X_API_KEY"),
+    api_secret=os.getenv("X_API_SECRET"),
+    callback="https://yourapp.com/callback"
+)
+
+# Step 2: Start OAuth flow
+auth_url = auth.start_oauth_flow(login_with_x=True)
+print(f"Please visit: {auth_url}")
+
+# Step 3: Get verifier from callback
+verifier = input("Enter the verifier from callback: ")
+
+# Step 4: Exchange for access token
+access_token = auth.get_access_token(verifier)
+print(f"Access Token: {access_token.access_token}")
+
+# Step 5: Create client and make requests
+client = Client(auth=auth)
+user = client.users.get_me()
+print(f"Authenticated as: @{user.data.username}")
+
+# Step 6: Post a tweet
+tweet = client.posts.create_tweet(text="Hello from XDK Python with OAuth 1.0a!")
+print(f"Posted tweet: {tweet.data.id}")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Reference" icon="book" href="/api/client">
+    Learn how to use the Client with OAuth 1.0a
+  </Card>
+  <Card title="OAuth 2.0 PKCE" icon="shield" href="/auth/oauth2">
+    Explore the modern OAuth 2.0 authentication method
+  </Card>
+</CardGroup>

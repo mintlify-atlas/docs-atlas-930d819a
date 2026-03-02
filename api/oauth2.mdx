@@ -1,0 +1,299 @@
+---
+title: "OAuth 2.0 PKCE"
+description: "OAuth 2.0 PKCE authentication with automatic token management"
+---
+
+The OAuth 2.0 PKCE module provides authentication functionality for secure authorization flows using Proof Key for Code Exchange (PKCE), including code verifier generation, token management, and automatic token refresh.
+
+## OAuth2PKCEAuth Class
+
+OAuth2 PKCE authentication handler for the X API.
+
+### Constructor
+
+```python
+OAuth2PKCEAuth(
+    base_url: str = "https://api.x.com",
+    authorization_base_url: str = "https://x.com/i",
+    client_id: str = None,
+    client_secret: str = None,
+    redirect_uri: str = None,
+    token: Dict[str, Any] = None,
+    scope: Union[str, List[str]] = None,
+)
+```
+
+<ParamField path="base_url" type="str" default="https://api.x.com">
+  The base URL for the X API token endpoint
+</ParamField>
+
+<ParamField path="authorization_base_url" type="str" default="https://x.com/i">
+  The base URL for OAuth2 authorization
+</ParamField>
+
+<ParamField path="client_id" type="str" default="None">
+  The client ID for the X API
+</ParamField>
+
+<ParamField path="client_secret" type="str" default="None">
+  The client secret for the X API (required for confidential clients)
+</ParamField>
+
+<ParamField path="redirect_uri" type="str" default="None">
+  The redirect URI for OAuth2 authorization
+</ParamField>
+
+<ParamField path="token" type="Dict[str, Any]" default="None">
+  An existing OAuth2 token dictionary (if available)
+</ParamField>
+
+<ParamField path="scope" type="Union[str, List[str]]" default="None">
+  Space-separated string or list of strings for OAuth2 authorization scopes
+</ParamField>
+
+### Methods
+
+#### get_authorization_url()
+
+Get the authorization URL for the OAuth2 PKCE flow.
+
+```python
+get_authorization_url(state: Optional[str] = None) -> str
+```
+
+<ParamField path="state" type="str" default="None">
+  Optional state parameter for security
+</ParamField>
+
+**Returns:** The authorization URL string
+
+#### exchange_code()
+
+Exchange authorization code for tokens.
+
+```python
+exchange_code(
+    code: str,
+    code_verifier: Optional[str] = None
+) -> Dict[str, Any]
+```
+
+<ParamField path="code" type="str" required>
+  The authorization code from the callback
+</ParamField>
+
+<ParamField path="code_verifier" type="str" default="None">
+  Optional code verifier (uses stored verifier if not provided)
+</ParamField>
+
+**Returns:** The token dictionary containing `access_token`, `token_type`, `expires_in`, `refresh_token`, and `scope`
+
+**Raises:**
+- `ValueError` - If code verifier is required but not available, or if token exchange fails
+
+#### fetch_token()
+
+Fetch token using authorization response URL (legacy method).
+
+```python
+fetch_token(authorization_response: str) -> Dict[str, Any]
+```
+
+<ParamField path="authorization_response" type="str" required>
+  The full callback URL received after authorization
+</ParamField>
+
+**Returns:** The token dictionary
+
+**Raises:**
+- `ValueError` - If no authorization code found in callback URL
+
+#### refresh_token()
+
+Refresh the access token.
+
+```python
+refresh_token() -> Dict[str, Any]
+```
+
+**Returns:** The refreshed token dictionary
+
+**Raises:**
+- `ValueError` - If no token is available or no client secret is configured
+
+#### set_pkce_parameters()
+
+Manually set PKCE parameters.
+
+```python
+set_pkce_parameters(
+    code_verifier: str,
+    code_challenge: Optional[str] = None
+)
+```
+
+<ParamField path="code_verifier" type="str" required>
+  The code verifier to use
+</ParamField>
+
+<ParamField path="code_challenge" type="str" default="None">
+  Optional code challenge (will be generated if not provided)
+</ParamField>
+
+#### get_code_verifier()
+
+Get the current code verifier.
+
+```python
+get_code_verifier() -> Optional[str]
+```
+
+**Returns:** The current code verifier, or None if not set
+
+#### get_code_challenge()
+
+Get the current code challenge.
+
+```python
+get_code_challenge() -> Optional[str]
+```
+
+**Returns:** The current code challenge, or None if not set
+
+#### is_token_expired()
+
+Check if the token is expired.
+
+```python
+is_token_expired() -> bool
+```
+
+**Returns:** `True` if the token is expired, `False` otherwise
+
+### Properties
+
+#### access_token
+
+Get the current access token.
+
+```python
+@property
+access_token -> Optional[str]
+```
+
+**Returns:** The current access token, or None if no token exists
+
+### Example Usage
+
+#### Public Client Flow
+
+```python
+from xdk.oauth2_auth import OAuth2PKCEAuth
+
+# Initialize OAuth2 PKCE for public client
+auth = OAuth2PKCEAuth(
+    client_id="your_client_id",
+    redirect_uri="http://localhost:3000/callback",
+    scope=["tweet.read", "tweet.write", "users.read"]
+)
+
+# Step 1: Get authorization URL
+auth_url = auth.get_authorization_url(state="random_state")
+print(f"Visit this URL to authorize: {auth_url}")
+
+# Step 2: User authorizes and you get the code from callback
+code = "authorization_code_from_callback"
+
+# Step 3: Exchange code for access token
+token = auth.exchange_code(code)
+print(f"Access Token: {token['access_token']}")
+print(f"Refresh Token: {token['refresh_token']}")
+
+# Step 4: Check if token is expired and refresh if needed
+if auth.is_token_expired():
+    token = auth.refresh_token()
+    print(f"Refreshed Access Token: {token['access_token']}")
+```
+
+#### Confidential Client Flow
+
+```python
+from xdk.oauth2_auth import OAuth2PKCEAuth
+
+# Initialize OAuth2 PKCE for confidential client
+auth = OAuth2PKCEAuth(
+    client_id="your_client_id",
+    client_secret="your_client_secret",  # Required for token refresh
+    redirect_uri="http://localhost:3000/callback",
+    scope="tweet.read tweet.write users.read"
+)
+
+# Get authorization URL
+auth_url = auth.get_authorization_url()
+print(f"Visit: {auth_url}")
+
+# Exchange authorization code
+token = auth.exchange_code("code_from_callback")
+
+# Refresh token when expired
+if auth.is_token_expired():
+    token = auth.refresh_token()
+```
+
+#### Using Existing Token
+
+```python
+from xdk.oauth2_auth import OAuth2PKCEAuth
+
+# Initialize with existing token
+existing_token = {
+    "access_token": "your_access_token",
+    "token_type": "bearer",
+    "expires_in": 7200,
+    "refresh_token": "your_refresh_token",
+    "scope": "tweet.read tweet.write users.read"
+}
+
+auth = OAuth2PKCEAuth(
+    client_id="your_client_id",
+    client_secret="your_client_secret",
+    token=existing_token
+)
+
+# Use the access token
+print(f"Current token: {auth.access_token}")
+
+# Refresh if needed
+if auth.is_token_expired():
+    token = auth.refresh_token()
+```
+
+#### Manual PKCE Parameters
+
+```python
+from xdk.oauth2_auth import OAuth2PKCEAuth
+import secrets
+import hashlib
+import base64
+
+# Generate PKCE parameters manually
+code_verifier = secrets.token_urlsafe(96)[:128]
+code_challenge = base64.urlsafe_b64encode(
+    hashlib.sha256(code_verifier.encode()).digest()
+).decode().rstrip("=")
+
+auth = OAuth2PKCEAuth(
+    client_id="your_client_id",
+    redirect_uri="http://localhost:3000/callback",
+    scope=["tweet.read", "users.read"]
+)
+
+# Set PKCE parameters manually
+auth.set_pkce_parameters(code_verifier, code_challenge)
+
+# Get authorization URL
+auth_url = auth.get_authorization_url()
+
+# Exchange code using the manually set verifier
+token = auth.exchange_code("code_from_callback")
+```

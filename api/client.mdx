@@ -1,0 +1,490 @@
+---
+title: "Client"
+description: "Main client for interacting with the X API"
+---
+
+The `Client` class is the primary entry point for the XDK. It handles authentication, session management, OAuth2 PKCE flows, and provides access to all API functionality through sub-clients.
+
+## Constructor
+
+```python
+Client(
+    base_url: str = "https://api.x.com",
+    bearer_token: str = None,
+    access_token: str = None,
+    client_id: str = None,
+    client_secret: str = None,
+    redirect_uri: str = None,
+    token: Dict[str, Any] = None,
+    scope: Union[str, List[str]] = None,
+    authorization_base_url: str = "https://x.com/i",
+    auth: OAuth1 = None,
+)
+```
+
+### Parameters
+
+<ParamField path="base_url" type="str" default="https://api.x.com">
+  The base URL for the X API.
+</ParamField>
+
+<ParamField path="bearer_token" type="str" default="None">
+  The bearer token for app-only authentication. Use this for application-level access without user context.
+</ParamField>
+
+<ParamField path="access_token" type="str" default="None">
+  The OAuth2 access token for user context. Can be used directly as a bearer token for authenticated requests.
+</ParamField>
+
+<ParamField path="client_id" type="str" default="None">
+  The client ID for OAuth2 PKCE flow. Required when using OAuth2 authorization.
+</ParamField>
+
+<ParamField path="client_secret" type="str" default="None">
+  The client secret for OAuth2. Optional for PKCE flow.
+</ParamField>
+
+<ParamField path="redirect_uri" type="str" default="None">
+  The redirect URI for OAuth2 authorization callback.
+</ParamField>
+
+<ParamField path="token" type="Dict[str, Any]" default="None">
+  An existing OAuth2 token dictionary. If provided, the `access_token` will be extracted automatically.
+</ParamField>
+
+<ParamField path="scope" type="Union[str, List[str]]" default="None">
+  OAuth2 authorization scopes. Can be a space-separated string or list of scope strings.
+</ParamField>
+
+<ParamField path="authorization_base_url" type="str" default="https://x.com/i">
+  The base URL for OAuth2 authorization endpoints.
+</ParamField>
+
+<ParamField path="auth" type="OAuth1" default="None">
+  OAuth1 instance for OAuth1.0a authentication.
+</ParamField>
+
+### Example
+
+<CodeGroup>
+
+```python Basic Authentication
+from xdk import Client
+
+# App-only authentication with bearer token
+client = Client(bearer_token="YOUR_BEARER_TOKEN")
+
+# User context with access token
+client = Client(access_token="YOUR_ACCESS_TOKEN")
+```
+
+```python OAuth2 Setup
+from xdk import Client
+
+# Initialize for OAuth2 flow
+client = Client(
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+    redirect_uri="http://localhost:3000/callback",
+    scope=["tweet.read", "tweet.write", "users.read"]
+)
+
+# Get authorization URL
+auth_url = client.get_authorization_url()
+print(f"Visit: {auth_url}")
+
+# After user authorizes, exchange code for token
+token = client.exchange_code(code="AUTHORIZATION_CODE")
+```
+
+```python Existing Token
+from xdk import Client
+
+# Use existing token dictionary
+token = {
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "refresh_token": "YOUR_REFRESH_TOKEN",
+    "expires_at": 1234567890
+}
+
+client = Client(
+    client_id="YOUR_CLIENT_ID",
+    token=token
+)
+```
+
+</CodeGroup>
+
+## Properties
+
+### oauth2_session
+
+```python
+@property
+def oauth2_session(self)
+```
+
+Returns the OAuth2 session object if OAuth2 authentication is configured.
+
+**Returns:** `OAuth2Session` or `None`
+
+### token
+
+```python
+@property
+def token(self)
+```
+
+Returns the current OAuth2 token dictionary if available.
+
+**Returns:** `Dict[str, Any]` or `None`
+
+**Token structure:**
+```python
+{
+    "access_token": "...",
+    "refresh_token": "...",
+    "expires_at": 1234567890,
+    "scope": ["tweet.read", "tweet.write"],
+    "token_type": "bearer"
+}
+```
+
+### access_token
+
+```python
+@property
+def access_token(self)
+```
+
+Returns the current access token string. Checks for directly set access token first, then falls back to OAuth2 token.
+
+**Returns:** `str` or `None`
+
+```python
+# Setter available
+client.access_token = "NEW_ACCESS_TOKEN"
+```
+
+## OAuth Methods
+
+### get_authorization_url
+
+```python
+def get_authorization_url(self, state=None) -> str
+```
+
+Generates the authorization URL for OAuth2 PKCE flow. Requires `client_id` to be configured.
+
+<ParamField path="state" type="str" default="None">
+  Optional state parameter for CSRF protection.
+</ParamField>
+
+**Returns:** `str` - The authorization URL to redirect users to
+
+**Raises:** `ValueError` if OAuth2 credentials not configured
+
+#### Example
+
+```python
+client = Client(
+    client_id="YOUR_CLIENT_ID",
+    redirect_uri="http://localhost:3000/callback",
+    scope=["tweet.read", "users.read"]
+)
+
+# Generate authorization URL
+auth_url = client.get_authorization_url(state="random_state_string")
+print(f"Redirect user to: {auth_url}")
+```
+
+### exchange_code
+
+```python
+def exchange_code(self, code, code_verifier=None) -> Dict[str, Any]
+```
+
+Exchanges an authorization code for access tokens. Automatically updates the client's `access_token` property.
+
+<ParamField path="code" type="str" required>
+  The authorization code received from the callback.
+</ParamField>
+
+<ParamField path="code_verifier" type="str" default="None">
+  The PKCE code verifier. If not provided, uses the stored verifier from `get_authorization_url()`.
+</ParamField>
+
+**Returns:** `Dict[str, Any]` - Token dictionary containing `access_token`, `refresh_token`, etc.
+
+**Raises:** `ValueError` if OAuth2 credentials not configured
+
+#### Example
+
+```python
+# After user authorizes and returns with code
+code = request.args.get('code')
+token = client.exchange_code(code)
+
+print(f"Access token: {token['access_token']}")
+print(f"Refresh token: {token['refresh_token']}")
+
+# Client's access_token is now automatically set
+print(f"Client access token: {client.access_token}")
+```
+
+### fetch_token
+
+```python
+def fetch_token(self, authorization_response) -> Dict[str, Any]
+```
+
+Fetches token using the full authorization response URL. This is a legacy method that parses the code from the callback URL.
+
+<ParamField path="authorization_response" type="str" required>
+  The full callback URL received after authorization (including query parameters).
+</ParamField>
+
+**Returns:** `Dict[str, Any]` - Token dictionary
+
+**Raises:** `ValueError` if OAuth2 credentials not configured
+
+#### Example
+
+```python
+# After OAuth callback
+callback_url = "http://localhost:3000/callback?code=AUTH_CODE&state=STATE"
+token = client.fetch_token(callback_url)
+```
+
+### refresh_token
+
+```python
+def refresh_token(self) -> Dict[str, Any]
+```
+
+Refreshes the OAuth2 access token using the refresh token. Automatically updates the client's `access_token` property.
+
+**Returns:** `Dict[str, Any]` - New token dictionary
+
+**Raises:** `ValueError` if OAuth2 credentials not configured
+
+#### Example
+
+```python
+# Check if token is expired and refresh if needed
+if client.is_token_expired():
+    new_token = client.refresh_token()
+    print(f"New access token: {new_token['access_token']}")
+```
+
+### is_token_expired
+
+```python
+def is_token_expired(self) -> bool
+```
+
+Checks whether the current OAuth2 token is expired.
+
+**Returns:** `bool` - `True` if expired or no token available, `False` otherwise
+
+#### Example
+
+```python
+if client.is_token_expired():
+    print("Token expired, refreshing...")
+    client.refresh_token()
+else:
+    print("Token still valid")
+```
+
+## Sub-Clients
+
+The Client provides access to all X API functionality through specialized sub-clients:
+
+### Posts
+
+```python
+client.posts
+```
+
+Access to Posts API for creating, reading, and managing posts (tweets). See [Posts API](/api/posts) for details.
+
+### Users
+
+```python
+client.users
+```
+
+Access to Users API for user profiles, follows, blocks, and mutes. See [Users API](/api/users) for details.
+
+### Direct Messages
+
+```python
+client.direct_messages
+```
+
+Access to Direct Messages API for sending and managing DMs.
+
+### Lists
+
+```python
+client.lists
+```
+
+Access to Lists API for creating and managing Twitter lists.
+
+### Spaces
+
+```python
+client.spaces
+```
+
+Access to Spaces API for audio spaces functionality.
+
+### Media
+
+```python
+client.media
+```
+
+Access to Media API for uploading images, videos, and GIFs.
+
+### Trends
+
+```python
+client.trends
+```
+
+Access to Trends API for trending topics and hashtags.
+
+### Communities
+
+```python
+client.communities
+```
+
+Access to Communities API for community management.
+
+### Community Notes
+
+```python
+client.community_notes
+```
+
+Access to Community Notes API (formerly Birdwatch).
+
+### Connections
+
+```python
+client.connections
+```
+
+Access to Connections API for managing user connections.
+
+### Compliance
+
+```python
+client.compliance
+```
+
+Access to Compliance API for compliance jobs and batch operations.
+
+### Webhooks
+
+```python
+client.webhooks
+```
+
+Access to Webhooks API for webhook subscriptions.
+
+### Account Activity
+
+```python
+client.account_activity
+```
+
+Access to Account Activity API for real-time account events.
+
+### Stream
+
+```python
+client.stream
+```
+
+Access to Streaming API for filtered and sampled streams.
+
+### Chat
+
+```python
+client.chat
+```
+
+Access to Chat API functionality.
+
+### Usage
+
+```python
+client.usage
+```
+
+Access to Usage API for rate limit and quota information.
+
+### General
+
+```python
+client.general
+```
+
+Access to General API endpoints.
+
+### News
+
+```python
+client.news
+```
+
+Access to News API endpoints.
+
+### Activity
+
+```python
+client.activity
+```
+
+Access to Activity API endpoints.
+
+## Complete Example
+
+```python
+from xdk import Client
+
+# Initialize client with OAuth2
+client = Client(
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+    redirect_uri="http://localhost:3000/callback",
+    scope=["tweet.read", "tweet.write", "users.read", "follows.read"]
+)
+
+# Step 1: Get authorization URL
+auth_url = client.get_authorization_url(state="secure_random_state")
+print(f"Visit: {auth_url}")
+
+# Step 2: After user authorizes, exchange code
+code = input("Enter the code from callback: ")
+token = client.exchange_code(code)
+print(f"Authenticated! Access token: {token['access_token'][:20]}...")
+
+# Step 3: Use the client to make API calls
+me = client.users.get_me()
+print(f"Logged in as: {me['data']['username']}")
+
+# Create a post
+post = client.posts.create_post(text="Hello from XDK!")
+print(f"Posted: {post['data']['id']}")
+
+# Step 4: Refresh token when expired
+if client.is_token_expired():
+    client.refresh_token()
+    print("Token refreshed!")
+```
