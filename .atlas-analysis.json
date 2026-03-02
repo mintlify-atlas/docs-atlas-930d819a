@@ -1,0 +1,168 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "XDK Python",
+  "projectDescription": "Auto-generated Python SDK for the X API with OAuth support and type safety",
+  "theme": "aspen",
+  "primaryColor": "#1DA1F2",
+  "lightColor": "#4AB3F4",
+  "darkColor": "#0D8BD9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "auth/overview",
+              "auth/oauth1",
+              "auth/oauth2",
+              "auth/bearer-token"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/client",
+              "concepts/pagination",
+              "concepts/streaming",
+              "concepts/error-handling"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/posts",
+              "guides/users",
+              "guides/direct-messages",
+              "guides/streaming-data",
+              "guides/rate-limits"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Client",
+            "pages": [
+              "api/client"
+            ]
+          },
+          {
+            "group": "Posts",
+            "pages": [
+              "api/posts"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users"
+            ]
+          },
+          {
+            "group": "Direct Messages",
+            "pages": [
+              "api/direct-messages"
+            ]
+          },
+          {
+            "group": "Lists",
+            "pages": [
+              "api/lists"
+            ]
+          },
+          {
+            "group": "Communities",
+            "pages": [
+              "api/communities"
+            ]
+          },
+          {
+            "group": "Spaces",
+            "pages": [
+              "api/spaces"
+            ]
+          },
+          {
+            "group": "Media",
+            "pages": [
+              "api/media"
+            ]
+          },
+          {
+            "group": "Other Resources",
+            "pages": [
+              "api/trends",
+              "api/chat",
+              "api/webhooks",
+              "api/connections",
+              "api/compliance",
+              "api/news",
+              "api/activity",
+              "api/community-notes"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/pagination",
+              "api/streaming",
+              "api/oauth1",
+              "api/oauth2"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Full support for X API v2 endpoints",
+    "OAuth 1.0a and OAuth 2.0 PKCE authentication",
+    "Automatic pagination with cursor-based iteration",
+    "Robust streaming with auto-reconnection",
+    "Type-safe models with Pydantic validation",
+    "Comprehensive error handling"
+  ],
+  "publicApiSurface": [
+    "Client",
+    "Client.posts",
+    "Client.users",
+    "Client.direct_messages",
+    "Client.lists",
+    "Client.communities",
+    "Client.spaces",
+    "Client.media",
+    "Client.trends",
+    "Client.chat",
+    "Client.webhooks",
+    "Client.connections",
+    "Client.compliance",
+    "Client.news",
+    "Client.activity",
+    "Client.community_notes",
+    "Client.account_activity",
+    "Client.stream",
+    "Client.general",
+    "Client.usage",
+    "Cursor",
+    "cursor()",
+    "PaginationError",
+    "StreamConfig",
+    "StreamError",
+    "StreamErrorType",
+    "StreamState",
+    "OAuth1",
+    "OAuth2PKCEAuth"
+  ]
+}
